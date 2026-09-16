@@ -4,7 +4,7 @@ import qs.Commons
 Rectangle {
   id: section
   required property var root
-  visible: root.connected
+  visible: root.panelAvailable && (root.connected || root.bluetoothExpanded)
   activeFocusOnTab: true
   Keys.forwardTo: [root.keyTarget]
   Keys.onPressed: function (event) { event.accepted = true }
@@ -45,7 +45,7 @@ Rectangle {
       Text {
         textFormat: Text.PlainText
         width: parent.width
-        visible: root.showMicLevel
+        visible: root.showMicLevel && root.connected
         text: root.opened && root.showMicLevel ? root.microphoneLevelText() : ""
         color: root.dim
         font.family: root.fontFamily
@@ -54,7 +54,8 @@ Rectangle {
       }
       Text {
         textFormat: Text.PlainText
-        text: root.callContextActive
+        text: !root.connected ? root.tr("microphone.usbOnly", "Signal metering requires USB. Follow the headset voice prompt for native mute.")
+          : root.callContextActive
           ? root.tr("microphone.callGesture", "Call mode requested. Follow the headset voice prompt; tap behavior is not confirmed.")
           : root.tr("microphone.mediaGesture", "Call mode not requested. A tap may control playback.")
         color: root.dim

@@ -55,8 +55,9 @@
       {
         "key": "hideWhenReceiverMissing",
         "type": "boolean",
-        "label": "Hide when the USB receiver is missing",
-        "defaultValue": true
+        "label": "Hide when USB and selected Bluetooth audio are disconnected",
+        "defaultValue": true,
+        "description": "Legacy visibility preference; hideWhenDisconnected overrides it when explicitly saved."
       },
       {
         "key": "useThemeColor",
@@ -97,6 +98,18 @@
         "max": 255,
         "step": 1,
         "defaultValue": 255
+      },
+      {
+        "key": "hideWhenDisconnected",
+        "type": "boolean",
+        "label": "Hide when USB and selected Bluetooth audio are disconnected",
+        "description": "Optional override. If unset, use hideWhenReceiverMissing."
+      },
+      {
+        "key": "bluetoothAudioAddress",
+        "type": "string",
+        "label": "Selected Bluetooth audio address",
+        "description": "Set by the panel device picker. Observation only; does not pair or connect."
       }
     ]
   }

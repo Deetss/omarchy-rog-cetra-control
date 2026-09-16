@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Io
 import qs.Commons
 
@@ -7,7 +8,78 @@ CetraPreferences {
   readonly property var serviceHost: root
 
   readonly property string watchCommand: decodeURIComponent(Qt.resolvedUrl("bin/cetra-watch").toString().replace("file://", ""))
-  AudioTopology { id: audioTopology; active: root.hostReady && root.receiver }
+  AudioTopology {
+    id: audioTopology
+    active: root.hostReady
+    usbAvailable: root.receiver
+    bluetoothAddress: bluetoothObserver.device && bluetoothObserver.audioConnected === true ? bluetoothObserver.device.address : ""
+  }
+  CetraBluetooth {
+    id: bluetoothObserver
+    active: root.hostReady
+    selectedAddress: typeof root.settings.bluetoothAudioAddress === "string" ? root.settings.bluetoothAudioAddress : ""
+    audioNodes: audioTopology.nodes
+  }
+  property var bluetoothPanelTokens: []
+  readonly property bool bluetoothPanelOpen: bluetoothPanelTokens.length > 0
+  function setBluetoothPanelOpen(viewToken, opened) {
+    if (!viewToken) return
+    var list = bluetoothPanelTokens.slice()
+    var idx = list.indexOf(viewToken)
+    if (opened) {
+      if (idx < 0) {
+        if (list.length >= 16) list.shift()
+        list.push(viewToken)
+
+      }
+    } else {
+      if (idx >= 0) {
+        list.splice(idx, 1)
+      }
+    }
+    bluetoothPanelTokens = list
+  }
+  CetraTelemetry {
+    id: bluetoothTelemetryWorker
+    active: root.hostReady && bluetoothObserver.audioConnected === true && !root.connected
+    address: bluetoothObserver.device && bluetoothObserver.audioConnected === true ? bluetoothObserver.device.address : (bluetoothObserver.selectedAddress || "")
+    deviceGeneration: bluetoothObserver.generation !== undefined ? bluetoothObserver.generation : 0
+    panelOpen: root.bluetoothPanelOpen
+  }
+  readonly property var bluetoothTelemetry: bluetoothTelemetryWorker.snapshot
+  readonly property string bluetoothTelemetryState: bluetoothTelemetryWorker.state
+  readonly property bool bluetoothTelemetryBusy: bluetoothTelemetryWorker.busy
+  readonly property bool bluetoothTelemetryCanRefresh: bluetoothTelemetryWorker.canRefresh
+  function refreshBluetoothTelemetry() {
+    return bluetoothTelemetryWorker.refresh()
+  }
+  readonly property string bluetoothAvailability: bluetoothObserver.availability
+  readonly property string audioIdentity: bluetoothObserver.identity
+  readonly property var bluetoothAudioConnected: bluetoothObserver.audioConnected
+  readonly property var bluetoothLeConnected: bluetoothObserver.leConnected
+  readonly property var bluetoothCandidates: bluetoothObserver.candidates
+  readonly property var bluetoothBattery: bluetoothObserver.battery
+  readonly property var audioStatus: audioTopology.audio
+  readonly property bool panelAvailable: receiver || bluetoothAudioConnected === true
+  readonly property bool canControlUsb: connected
+  readonly property bool bluetoothDiagnosticsEnabled: Quickshell.env("CETRA_DIAGNOSTICS") !== "0"
+  readonly property string bluetoothDiagnosticState: JSON.stringify({ availability: bluetoothAvailability,
+    identity: audioIdentity, connected: bluetoothAudioConnected, profile: audioStatus.profile,
+    output: audioStatus.output, capture: audioStatus.capture,
+    batterySource: "bluez-audio", leRejection: "association-unverified" })
+  property var bluetoothDiagnostics: []
+  onBluetoothDiagnosticStateChanged: recordBluetoothTransition()
+  function recordBluetoothTransition() {
+    if (!bluetoothDiagnosticsEnabled) { bluetoothDiagnostics = []; return }
+    if (bluetoothDiagnostics.length && bluetoothDiagnostics[bluetoothDiagnostics.length - 1] === bluetoothDiagnosticState) return
+    // Bounded session diagnostics, no competing writer to the HID owner's log.
+    bluetoothDiagnostics = bluetoothDiagnostics.slice(-15).concat([bluetoothDiagnosticState])
+  }
+  function selectBluetoothAudio(address) {
+    var key = bluetoothObserver.normalizeAddress(address)
+    if (address !== "" && (!key || !bluetoothCandidates.some(function (candidate) { return candidate.address === key }))) return false
+    return updateSetting("bluetoothAudioAddress", key, {})
+  }
   CallDetector { id: detector; root: serviceHost; observation: audioTopology.observation.communication }
   readonly property var microphoneLevel: microphoneMeter.item ? (microphoneMeter.item as MicrophoneMeter).level : null
   Loader {

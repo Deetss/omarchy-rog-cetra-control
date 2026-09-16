@@ -2,15 +2,16 @@
 
 Battery status, noise control, Aura lighting and headset voice-prompt settings
 for ASUS ROG Cetra True Wireless SpeedNova over its USB receiver (`0b05:1ad3`,
-interface 3). Bluetooth and other Cetra models are not supported.
+interface 3). This development tree also observes Bluetooth audio connection,
+routes, per-earbud/case charge and ANC mode. Hardware controls still require USB; other
+Cetra models are not supported.
 
 ![ROG Cetra Control panel](preview.png)
 
-Version **1.7.0 is prepared for release with documented limitations**; publication
-is pending. The previous [1.6.0 pre-release](https://github.com/PavelLizunov/omarchy-rog-cetra-control/releases/tag/v1.6.0)
-does not include these changes. See [RELEASE.md](RELEASE.md) for candidate status
-and [BACKLOG.md](BACKLOG.md) for accepted limits and untested scenarios. The preview
-predates the optional microphone meter and is not a screenshot of every 1.7.0 control.
+This working tree extends the 1.7.0 baseline with an unreleased Bluetooth status
+stage. See [SDD-BLUETOOTH-TELEMETRY.md](SDD-BLUETOOTH-TELEMETRY.md) for vendor reads and
+[BACKLOG.md](BACKLOG.md) for acceptance limits. The preview predates Bluetooth
+status and does not show the current panel.
 
 ## Install
 
@@ -19,10 +20,11 @@ shell. This plugin uses a native receiver helper and persistent local diagnostic
 Review [Security and privacy](#security-and-privacy) before installing.
 
 Runtime dependencies: Omarchy Quattro/Quickshell, `hidapi` (hidraw backend),
-`libpulse` and Quickshell's PipeWire service. A PulseAudio-compatible audio server
+`libpulse`, `bluez-libs` (libbluetooth) and Quickshell's PipeWire and Bluetooth services (tested on Quickshell
+0.3.1). A PulseAudio-compatible audio server
 is needed for peak capture. Setup additionally uses `bash`, `jq` and GNU `timeout`.
 Building needs a C compiler and `pkg-config`.
-The manual setup script can install `base-devel`, `hidapi`, `libpulse` and `pkgconf`; it
+The manual setup script can install `base-devel`, `hidapi`, `libpulse`, `bluez-libs` and `pkgconf`; it
 does not install every runtime or test dependency.
 
 ```bash
@@ -32,7 +34,7 @@ omarchy plugin enable io.github.pavellizunov.rog-cetra-control --section right
 ```
 
 The Marketplace clones source; it does not execute setup automatically. Setup
-compiles all three helpers, runs their offline selftests and validates the folder.
+compiles all four helpers, runs their offline selftests and validates the folder.
 It requires an explicitly unlocked Omarchy session; locked, unavailable or
 malformed lock-status responses prevent binary replacement.
 
@@ -61,6 +63,54 @@ stale battery values cannot re-enable controls. Pending settings wait up to 48
 250 ms scheduler ticks (nominally 12 seconds), allowing the periodic ten-second
 readback cycle. A late matching reply clears the error without repeating a write.
 The selected state is readback, not an optimistic click result.
+
+### Bluetooth status (development)
+
+The compact panel shows battery, source, last-reported notice, read-only Bluetooth
+ANC and Refresh. Connection routes, profile/LE explanations, system Battery1,
+case freshness and Bluetooth microphone details are under **Details**, collapsed
+by default. USB availability collapses this section and restores USB controls.
+The device picker also appears directly when no audio identity is selected.
+The bar tooltip has three lines: device, connection status and last-reported charge.
+
+Connect the earbuds using the system Bluetooth panel, then open **Details** in this plugin and select the Cetra audio record. Select the main audio record, not `LE-ROG`. The picker lists devices with an observed Bluetooth audio endpoint;
+it only saves an address to identify future observations. It does not connect,
+pair, scan, or change audio profiles. No name-based automatic selection is used.
+
+- The panel stays available after USB removal while the selected audio device
+  remains connected. ANC, lighting, voice settings and the signal meter require
+  USB. Microphone mute remains unknown on both transports.
+- With USB earbuds available, their readings have priority. Otherwise the three
+  battery columns and bar percentage use one complete vendor Bluetooth report.
+  Unknown fields stay unknown: a right earbud inside a closed case may stop
+  reporting its percentage while the left and case still report values.
+- Bluetooth ANC is read-only. The plugin reads the verified `Asus_APP` service
+  using three fixed getters; it does not send Bluetooth control commands.
+- A successful read schedules the next one after 15 seconds with a panel open,
+  or two minutes in the background. A failed transaction clears the report and
+  stops automatic retries. **Refresh** permits a retry after a 30-second cooldown;
+  a new connection permits another initial attempt. Reports expire after three
+  minutes. Case charge/charging flags are last reported, not proof of fresh
+  physical measurements. This cadence has not been measured for battery impact.
+- The separate **Bluetooth reported charge** is the system Battery1 property;
+  its side and freshness are unknown. It never fills a missing vendor field or
+  drives the bar. LE values are also excluded.
+- Service BLE cannot yet be associated with a physical case/headset reliably.
+  Its battery value, including the observed stuck 71%, is not used.
+- Playback and capture labels follow active PipeWire links, including processing
+  paths. A default or connected device alone is not an active route. Mixed and
+  unresolved routes are shown explicitly. These are system-wide application
+  routes; capture includes other applications even if they do not qualify as calls.
+- A2DP has no microphone in that profile. A headset profile shows a microphone
+  only when its endpoint is observed. This version does not switch profiles or
+  meter Bluetooth input; use system audio settings for profile selection.
+
+`bluetoothAudioAddress` stores the chosen identity in the existing inline plugin
+entry. Clear it using the picker to remove the association. Optional
+`hideWhenDisconnected` takes precedence over the legacy `hideWhenReceiverMissing`;
+when unset, the legacy value is preserved (default true). Connected audio candidates
+keep the picker accessible when an identity needs selection. No implicit LE pairing
+or pairing between different physical headsets is performed.
 
 ### Lighting
 
@@ -204,8 +254,14 @@ below if you want to delete diagnostics.
   disconnecting clients on backpressure. Owner stdout retains at most a partial
   frame and the latest pending state; mirror queues are bounded to 4 KiB per direction.
 - Call detection reads PipeWire metadata, not audio samples. The optional meter
-  creates a peak-capture stream as described above. Device serial numbers are not
-  persisted. No system microphone mute or existing audio routing is changed.
+  creates a peak-capture stream as described above. The selected Bluetooth address is persisted in the plugin entry; native
+  USB device serial numbers are not persisted. No system microphone mute or existing audio routing is changed.
+- Bluetooth telemetry adds no capture stream. The native reader opens the selected
+  device’s SDP/RFCOMM service and sends only three verified getters, without root.
+  It does not pair, scan, change profiles or send control writes. At most 16
+  connection/profile/route diagnostic snapshots are kept in service memory, without
+  addresses or battery sampling. They reset with the service and honor
+  `CETRA_DIAGNOSTICS=0`; they do not write to the USB owner log.
 - Owner-only telemetry logs commands/RGB, gestures, battery/settings, lifecycle,
   timestamps and raw unhandled HID bytes. This can reveal usage timing.
 - Log path: `${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/rog-cetra-control.log`.

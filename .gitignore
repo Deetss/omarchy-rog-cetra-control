@@ -1,5 +1,6 @@
 /bin/cetra-status
 /bin/cetra-watch
 /bin/cetra-peak
+/bin/cetra-bt-read
 *.o
 *.tmp

@@ -17,7 +17,8 @@ Omarchy shell
     I18n → local catalogs
   CetraService.qml (one manifest service)
     CetraPreferences → scoped shell API + FileView watch + bounded settings reader
-    AudioTopology → tracked PipeWire nodes/links → tri-state endpoint observations
+    CetraBluetooth → native Bluetooth model → manually selected audio identity
+    AudioTopology → tracked PipeWire nodes/links → USB endpoint observations + audio routes
     CallDetector → event-driven communication observation + bounded settlement
     MicrophoneMeter → bin/cetra-peak → libpulse peak stream (opt-in, audio-only)
     Process → bin/cetra-watch
@@ -60,6 +61,75 @@ This allows the periodic ten-second readback cycle. A late matching response
 clears its failure. Commands are not replayed to conceal missing confirmation.
 Manual ANC selection disables Adaptive if it is On or Unknown; pending state is
 shared across views. The three-second mode timeout is a separate control path.
+
+## Bluetooth observation boundary
+
+`CetraBluetooth.qml` is one service child. The native API exposes connection and
+Battery1 properties but not model identifiers, UUIDs or an audio/LE association.
+Candidates therefore require a real Bluetooth Audio/Sink or Audio/Source node;
+the user confirms the address once. Names are display hints. Multiple native
+objects with the selected address yield unknown identity, never first-match
+binding. No address is hardcoded. Candidate processing is capped at 64 BlueZ
+objects and 512 PipeWire nodes; the topology remains bounded to 2048 links.
+
+`connected` and `receiver` retain USB meanings. `canControlUsb` aliases the existing
+USB predicate; `panelAvailable` includes the selected Bluetooth connection.
+USB resets never clear the Bluetooth child. `AudioTopology.active` follows host
+readiness; `usbAvailable` separately gates the pre-existing communication
+observation. Meter admission still requires USB, an admitted external capture
+endpoint and opt-in. Foreign ALSA and BlueZ inputs veto mixed USB attribution.
+
+System Battery1 records are independent of the selected vendor/USB columns. Quickshell
+0..1 values are validated before conversion; absent/invalid values remain null,
+and zero is valid. Selected-object changes, availability loss and connection
+transitions advance the generation. Connections follow the selected object;
+callbacks with another object or generation are rejected. Initial/reconnect
+snapshots are `cached`, battery-property signals are `property-update`; neither
+proves freshness. `observedAt` and `hardwareReportedAt` remain null because the
+installed API supplies no verified monotonic report time. LE remains unassociated
+and cannot supply a displayed percentage.
+
+`audioStatus` derives profile only from selected node metadata and routes only
+from active links. No node does not prove profile `off`. Unknown profile metadata
+falls back to observed endpoint availability. Route graphs are separate from
+USB call admission; keepalive can be a displayed capture route without activating
+call mode. Missing graph evidence yields unknown. No default-route inference,
+profile switch, connection operation, GATT read, or Bluetooth capture is issued.
+PipeWire 1.6.8 HFP can expose an internal BlueZ source and a public loopback source
+without an address property. The public source is associated only by equal
+`device.id` with exactly one native BlueZ address. Internal loopback streams are
+excluded from application-route admission; unresolved identities stay unknown.
+
+`bluetoothDiagnostics` keeps the last 16 distinct status snapshots in memory,
+honoring the existing environment opt-out. No additional persistent log writer is introduced. Settings use the existing scoped persistence path;
+`hideWhenDisconnected` is optional and falls back to the legacy key without
+injecting a new default over saved preferences.
+
+## Vendor Bluetooth telemetry
+
+`CetraTelemetry.qml` is one shared-service child. It runs `cetra-bt-read ADDRESS`
+only for the explicitly selected, connected audio device while USB `connected`
+is false. SDP resolves one `Asus_APP` SPP service; RFCOMM sends only the verified
+ANC, power and charging getters. No root, connection/profile mutation or hidraw
+access is involved. A per-user abstract socket excludes concurrent readers.
+The helper has a 12-second total deadline, 4-second SDP stage, 5-second connect,
+and 2-second getter stages; earlier global expiry wins. BlueZ owns SDP decoding;
+record-count checks occur after its library parser, not as a wire allocation cap.
+
+One request owns the process until exit. Generation/address changes clear the
+snapshot and cancel the old request before the next launch. The service validates
+exactly one JSON report and accepts it only on successful exit within 15 seconds.
+Success schedules 15-second open-panel or 120-second background reads. Failure
+clears the snapshot and latches automatic polling; only explicit refresh after
+30 seconds or a new eligible connection retries. Values expire after 180 seconds
+or clock rollback. These host timestamps do not prove hardware sample freshness.
+
+The view preserves USB-only `connected` and command gates. Battery columns choose
+one complete USB or Bluetooth source; nullable Bluetooth presence is not inferred
+from charge. `ff` right battery clears that percentage without discarding valid
+siblings. Bluetooth ANC is a separate read-only label. Open-view membership is
+bounded to 16 tokens and removed by each view on destruction/service change.
+Native microphone mute remains unknown. No power-saving claim is made.
 
 ## Scheduling
 

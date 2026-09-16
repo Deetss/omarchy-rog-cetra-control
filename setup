@@ -40,8 +40,8 @@ ensure_shell_unlocked
 
 omarchy plugin validate "$plugin_dir"
 
-if ! command -v cc >/dev/null || ! pkg-config --exists hidapi-hidraw libpulse; then
-  omarchy pkg add base-devel hidapi libpulse pkgconf
+if ! command -v cc >/dev/null || ! pkg-config --exists hidapi-hidraw libpulse bluez; then
+  omarchy pkg add base-devel hidapi libpulse bluez-libs pkgconf
 fi
 
 mkdir -p "$plugin_dir/bin"
@@ -60,6 +60,8 @@ chmod 755 "$build_dir/cetra-status"
 chmod 755 "$build_dir/cetra-watch"
 cc -O2 -Wall -Wextra -Werror -o "$build_dir/cetra-peak" "$plugin_dir/cetra-peak.c" $(pkg-config --cflags --libs libpulse) -lm
 chmod 755 "$build_dir/cetra-peak"
+cc -O2 -Wall -Wextra -Werror -o "$build_dir/cetra-bt-read" "$plugin_dir/cetra-bt-read.c" $(pkg-config --cflags --libs bluez)
+"$build_dir/cetra-bt-read" --selftest >/dev/null
 "$build_dir/cetra-peak" --selftest >/dev/null
 "$build_dir/cetra-status" --selftest >/dev/null
 "$build_dir/cetra-watch" --selftest >/dev/null
@@ -67,6 +69,7 @@ install_if_changed "$build_dir/cetra-status" "$plugin_dir/bin/cetra-status"
 install_if_changed "$build_dir/cetra-watch" "$plugin_dir/bin/cetra-watch"
 
 install_if_changed "$build_dir/cetra-peak" "$plugin_dir/bin/cetra-peak"
+install_if_changed "$build_dir/cetra-bt-read" "$plugin_dir/bin/cetra-bt-read"
 
 if ! lsusb -d 0b05:1ad3 >/dev/null 2>&1; then
   printf '%s\n' "ROG Cetra SpeedNova receiver 0b05:1ad3 is not connected." >&2

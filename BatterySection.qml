@@ -50,7 +50,8 @@ Column {
         Text {
           textFormat: Text.PlainText
           width: parent.width
-          visible: text !== ""
+          visible: text !== "" && (!root.usesBluetoothTelemetry || modelData.charging === true
+            || modelData.present === true || modelData.present === false)
           text: modelData.present === true && modelData.value === null
             ? root.tr("battery.presentNoLevel", "Available; battery unknown")
             : root.batteryStatusText(modelData.present, modelData.charging, modelData.isCase)
@@ -73,6 +74,15 @@ Column {
         }
       }
     }
+  }
+  Text {
+    textFormat: Text.PlainText
+    width: parent.width
+    text: root.batterySourceText()
+    color: root.dim
+    font.family: root.fontFamily
+    font.pixelSize: Style.font.caption
+    wrapMode: Text.WordWrap
   }
   Text {
     textFormat: Text.PlainText

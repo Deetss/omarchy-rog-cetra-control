@@ -328,7 +328,8 @@ const cases = {
   'UI handlers use host slider, explicit Apply, accessibility and no startup autosend': () => {
     assert.match(widget, /PanelSlider \{/);
     assert.doesNotMatch(widget, /ColorDialog|ColorPicker|QtQuick\.Dialogs|#[0-9a-f]{6}/i);
-    assert.doesNotMatch(widget, /on(?:UseThemeColor|LightingRgb|SelectedLightingColor|Accent|Connected)Changed/);
+    assert.doesNotMatch(widget, /on(?:UseThemeColor|LightingRgb|SelectedLightingColor|Accent)Changed/);
+    assert.match(widget, /onConnectedChanged: \{\s*if \(connected\) root\.bluetoothExpanded = false\s*if \(opened\) Qt.callLater\(function \(\) \{ root.focusControl\(root.languageButton\) \}\)\s*\}/, "Connection handler collapses details and repairs focus; no lighting replay");
     assert.match(widget, /Component\.onCompleted: root\.languageButton = this/);
     assert.match(widget, /onReleased: function \(value\) \{ root\.setLightingSetting\(modelData\.key, value\) \}/);
     assert.match(widget, /onMoved: root\.focusControl\(channelSlider\)/);
