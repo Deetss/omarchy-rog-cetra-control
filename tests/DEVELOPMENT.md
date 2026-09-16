@@ -1,4 +1,4 @@
-# Tests Directory Instructions
+# Test development notes
 
 ## Purpose
 

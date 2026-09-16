@@ -221,6 +221,9 @@ below if you want to delete diagnostics.
 
 ## Development and verification
 
+[DEVELOPMENT.md](DEVELOPMENT.md) covers hardware safety and verification rules.
+Directory notes: [tests](tests/DEVELOPMENT.md), [assets](assets/DEVELOPMENT.md),
+[helpers](bin/DEVELOPMENT.md).
 [MODULES.md](MODULES.md) maps changes to source owners and tests.
 [HANDBOOK.md](HANDBOOK.md) describes architecture; [CONTRIBUTING.md](CONTRIBUTING.md)
 contains contribution rules. Historical records are not current runtime specs.

@@ -1,4 +1,4 @@
-# Repository Instructions & Agent Directives
+# Development notes
 
 ## Quick Reference
 
@@ -18,7 +18,7 @@ Private C modules live in `daemon/` and compile through the single owner entry
 point. QML section components receive the view model explicitly. Read MODULES.md
 before editing; preserve tests of the complete implementation after moving code.
 Historical records in `docs/archive/` and dated reviews are evidence, not current
-instructions. New agent-facing procedures are written in English.
+instructions. New development procedures are written in English.
 
 ## Non-Negotiable Safety Rules
 

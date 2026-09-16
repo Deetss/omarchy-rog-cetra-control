@@ -4,7 +4,7 @@ Plugin ID: `io.github.pavellizunov.rog-cetra-control`.
 Hardware: ASUS ROG Cetra True Wireless SpeedNova USB receiver `0b05:1ad3`,
 interface 3. `/dev/hidrawN` numbering is dynamic; never hardcode the observed path.
 
-Read AGENTS.md first, BACKLOG.md before behavior changes, and MODULES.md to find
+Read DEVELOPMENT.md first, BACKLOG.md before behavior changes, and MODULES.md to find
 the owning source. RESEARCH.md contains the dated protocol evidence. This
 handbook describes the current architecture, not a release-readiness verdict.
 

@@ -1,4 +1,4 @@
-# Assets Directory Instructions
+# Asset development notes
 
 ## Purpose
 

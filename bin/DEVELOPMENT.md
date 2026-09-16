@@ -1,4 +1,4 @@
-# Bin Directory Instructions
+# Helper development notes
 
 ## Purpose
 

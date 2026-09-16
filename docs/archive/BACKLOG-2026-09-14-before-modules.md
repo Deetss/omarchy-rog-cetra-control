@@ -5,7 +5,7 @@ Use ../../BACKLOG.md for active status and ../../MODULES.md for current paths.
 Old line references, counts and pending-parent statements describe their dates.
 
 > Authoritative backlog for release blockers, engineering debt, missing tests,
-> and unresolved protocol research. Read this file after `AGENTS.md` and
+> and unresolved protocol research. Read this file after `DEVELOPMENT.md` and
 > `HANDBOOK.md`, before changing runtime behavior.
 
 Historical audit: 2026-09-05
