@@ -9,6 +9,8 @@ do not load the entire repository by default. Protocol evidence is in RESEARCH.m
 | --- | --- | --- |
 | Bar placement, popup, keyboard traversal | `Cetra.qml` | Installed Omarchy Panel/KeyboardPanel; `tests/service-lifecycle/keyboard.js` |
 | View-facing status labels and actions | `CetraViewModel.qml` | All sections; `tests/i18n/run.js`, `tests/lighting-color/run.js` |
+| Bluetooth identity and Battery1 | `CetraBluetooth.qml` | Service; `tests/bluetooth.js`, `tests/bluetooth/run.py` |
+| Transport status and device selection | `ConnectionSection.qml` | View model → service; Bluetooth and i18n tests |
 | Battery columns | `BatterySection.qml` | View model; device-report and live rendering checks |
 | ANC modes, manual levels, Adaptive | `NoiseSection.qml` | View model → service; `tests/service-lifecycle/run.js` |
 | Language picker | `LanguageSection.qml` | View model → preferences; `tests/i18n/run.js` |
@@ -73,9 +75,26 @@ tasks or introduce another hidraw reader.
 - `HANDBOOK.md`: architecture and state/ownership contracts.
 - `RESEARCH.md`: dated hardware evidence, provenance and unresolved protocol facts.
 - `BACKLOG.md`: active work and release blockers.
+- `SDD-BLUETOOTH.md`: first-stage Bluetooth scope, installed-API adaptations and
+  acceptance; hardware acceptance is recorded separately.
 - `RELEASE.md`: candidate evidence and submission fields; not publication approval.
 - `CHANGELOG.md`: changes by release; `REVIEW-2026-09-08.md` and `docs/archive/`
   are historical records, not current instructions or passing-test evidence.
 
 When moving code, update this map, build/snapshot inputs and owning tests in the
 same change. File length is a navigation aid, not a reason to split cohesive code.
+
+## Bluetooth vendor extension (unreleased)
+
+- `cetra-bt-read.c`: SDP/RFCOMM one-shot reader, bounded framing and JSON, per-user
+  exclusion; linked by `setup` with libbluetooth. No access to the USB receiver.
+- `CetraTelemetry.qml`: shared request lifecycle, generation invalidation,
+  cadence, failure latch, cooldown and snapshot expiry.
+- `CetraService.qml`: owns the telemetry child and open-view membership.
+- `CetraViewModel.qml`: whole-source battery projection and view registration;
+  `ConnectionSection.qml` owns Bluetooth refresh/status and read-only ANC.
+- `tests/bluetooth-telemetry-native.py`: offline native protocol/CLI/lock checks.
+- `tests/bluetooth-telemetry.js`: production QML function state-machine checks.
+- `tests/bluetooth-telemetry/run.py`: complete QML component with controlled Qt
+  process adapter; no hardware or second Quickshell session.
+- `SDD-BLUETOOTH-TELEMETRY.md`: approved behavior and verification contract.

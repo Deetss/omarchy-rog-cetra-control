@@ -10,7 +10,7 @@ with tempfile.TemporaryDirectory(prefix="cetra-setup-", dir="/tmp/opencode") as 
     root = pathlib.Path(tmp)
     candidate = root / "candidate with spaces"
     candidate.mkdir()
-    for name in ("setup", "cetra-status.c", "cetra-watch.c", "cetra-peak.c", "manifest.json"):
+    for name in ("setup", "cetra-status.c", "cetra-watch.c", "cetra-peak.c", "cetra-bt-read.c", "manifest.json"):
         shutil.copy2(repo / name, candidate / name)
     shutil.copytree(repo / "daemon", candidate / "daemon")
     tools = root / "tools"

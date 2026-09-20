@@ -45,18 +45,72 @@ Panel {
   readonly property bool showMicLevel: preference("showMicLevel", false) === true
   readonly property var microphoneLevel: service && service.microphoneLevel !== undefined ? service.microphoneLevel : null
   readonly property bool hideWhenReceiverMissing: preference("hideWhenReceiverMissing", true) === true
+  readonly property bool hideWhenDisconnected: preference("hideWhenDisconnected", hideWhenReceiverMissing) === true
+  readonly property bool panelAvailable: receiver || bluetoothAudioConnected === true
+  readonly property var bluetoothAudioConnected: service ? service.bluetoothAudioConnected : null
+  readonly property string bluetoothAvailability: service ? service.bluetoothAvailability : "unavailable"
+  readonly property var bluetoothCandidates: service ? service.bluetoothCandidates : []
+  readonly property string audioIdentity: service ? service.audioIdentity : "missing"
+  readonly property var bluetoothBattery: service ? service.bluetoothBattery : null
+  readonly property var audioStatus: service ? service.audioStatus : ({ output: "unknown", capture: "unknown", profile: "unknown", sink: false, microphone: false })
+  property bool bluetoothExpanded: false
+  property var connectionDetailsButton: null
+  function selectBluetoothAudio(address) {
+    if (service && service.selectBluetoothAudio(address)) bluetoothExpanded = false
+  }
+  function connectionText(value) {
+    return value === true ? root.tr("connection.connected", "Connected") : value === false
+      ? root.tr("connection.disconnected", "Disconnected") : root.tr("connection.unknown", "Unknown")
+  }
+  function routeText(value) {
+    var labels = { usb: "USB", bluetooth: "Bluetooth", other: root.tr("connection.other", "Other device"),
+      mixed: root.tr("connection.mixed", "Multiple devices"), inactive: root.tr("connection.inactive", "Inactive") }
+    return labels[value] || root.tr("connection.unknown", "Unknown")
+  }
+  function bluetoothProfileText() {
+    if (audioStatus.profile === "a2dp") return root.tr("connection.a2dp", "A2DP: playback; microphone unavailable in this profile.")
+    if (audioStatus.profile === "hfp" && audioStatus.microphone) return root.tr("connection.hfp", "Headset profile: microphone endpoint available.")
+    if (audioStatus.profile === "hfp") return root.tr("connection.hfpNoMic", "Headset profile: microphone endpoint not observed.")
+    return root.tr("connection.endpoints", "Profile unknown. Playback endpoint: {sink}; microphone endpoint: {source}.", {
+      sink: endpointText(audioStatus.sink), source: endpointText(audioStatus.microphone) })
+  }
+  function endpointText(value) {
+    return value ? root.tr("connection.endpointPresent", "Available") : root.tr("connection.endpointAbsent", "Not observed")
+  }
+  function bluetoothDeviceText(candidate) {
+    return String(candidate.name).slice(0, 100) + "\n" + candidate.address
+  }
+  function bluetoothBatteryDetail() {
+    if (!bluetoothBattery || bluetoothBattery.percent === null) return bluetoothBatteryText()
+    return bluetoothBatteryText() + "\n" + (bluetoothBattery.snapshot === "property-update"
+      ? root.tr("bluetooth.updated", "System property changed during this connection.")
+      : root.tr("bluetooth.cached", "Cached system value; no new hardware report confirmed."))
+  }
+  function bluetoothBatteryText() {
+    if (!bluetoothBattery || bluetoothBattery.percent === null) return root.tr("bluetooth.noBattery", "Bluetooth reported charge: no data.")
+    return root.tr("bluetooth.battery", "Bluetooth reported charge: {value}%. Side and freshness unknown.", { value: bluetoothBattery.percent })
+  }
+
   readonly property string deviceStatus: service ? service.deviceStatus : "starting"
   readonly property bool receiver: service ? service.receiver : false
   readonly property bool connected: service ? service.connected : false
-  readonly property var leftPresent: service ? service.leftPresent : null
-  readonly property var rightPresent: service ? service.rightPresent : null
-  readonly property var leftCharging: service ? service.leftCharging : null
-  readonly property var rightCharging: service ? service.rightCharging : null
-  readonly property var caseCharging: service ? service.caseCharging : null
-  readonly property bool presenceObserved: service ? service.presenceObserved : false
-  readonly property var leftLevel: service ? service.leftLevel : null
-  readonly property var rightLevel: service ? service.rightLevel : null
-  readonly property var caseLevel: service ? service.caseLevel : null
+  readonly property var bluetoothTelemetry: service && service.bluetoothTelemetry !== undefined ? service.bluetoothTelemetry : null
+  readonly property string bluetoothTelemetryState: service ? service.bluetoothTelemetryState : "idle"
+  readonly property bool bluetoothTelemetryBusy: service ? service.bluetoothTelemetryBusy : false
+  readonly property bool bluetoothTelemetryCanRefresh: service ? service.bluetoothTelemetryCanRefresh : false
+  readonly property bool usesBluetoothTelemetry: !connected && bluetoothTelemetry !== null
+  readonly property string bluetoothTelemetryMode: bluetoothTelemetry && bluetoothTelemetry.mode !== undefined ? bluetoothTelemetry.mode : "unknown"
+  readonly property string batterySource: connected ? "usb" : (usesBluetoothTelemetry ? "bluetooth" : "unknown")
+
+  readonly property var leftPresent: usesBluetoothTelemetry ? null : (service ? service.leftPresent : null)
+  readonly property var rightPresent: usesBluetoothTelemetry ? null : (service ? service.rightPresent : null)
+  readonly property var leftCharging: connected ? (service ? service.leftCharging : null) : (usesBluetoothTelemetry && bluetoothTelemetry.left_charging !== undefined ? bluetoothTelemetry.left_charging : null)
+  readonly property var rightCharging: connected ? (service ? service.rightCharging : null) : (usesBluetoothTelemetry && bluetoothTelemetry.right_charging !== undefined ? bluetoothTelemetry.right_charging : null)
+  readonly property var caseCharging: connected ? (service ? service.caseCharging : null) : (usesBluetoothTelemetry && bluetoothTelemetry.case_charging !== undefined ? bluetoothTelemetry.case_charging : null)
+  readonly property bool presenceObserved: usesBluetoothTelemetry ? false : (service ? service.presenceObserved : false)
+  readonly property var leftLevel: connected ? (service ? service.leftLevel : null) : (usesBluetoothTelemetry && bluetoothTelemetry.left !== undefined ? bluetoothTelemetry.left : null)
+  readonly property var rightLevel: connected ? (service ? service.rightLevel : null) : (usesBluetoothTelemetry && bluetoothTelemetry.right !== undefined ? bluetoothTelemetry.right : null)
+  readonly property var caseLevel: connected ? (service ? service.caseLevel : null) : (usesBluetoothTelemetry && bluetoothTelemetry.case !== undefined ? bluetoothTelemetry.case : null)
   readonly property string listeningMode: service ? service.listeningMode : "unknown"
   readonly property string pendingMode: service ? service.pendingMode : ""
   readonly property bool modeRequestTimedOut: service ? service.modeRequestTimedOut : false
@@ -88,9 +142,58 @@ Panel {
   readonly property bool callContextActive: service ? service.callContextActive : false
   readonly property int lowestLevel: {
     var levels = []
-    if (leftLevel !== null) levels.push(Number(leftLevel))
-    if (rightLevel !== null) levels.push(Number(rightLevel))
+    if (leftLevel !== null && leftLevel !== undefined && leftLevel >= 0 && leftLevel <= 100) levels.push(Number(leftLevel))
+    if (rightLevel !== null && rightLevel !== undefined && rightLevel >= 0 && rightLevel <= 100) levels.push(Number(rightLevel))
     return levels.length ? Math.min.apply(null, levels) : -1
+  }
+
+  property var _registeredService: null
+  function _updateBluetoothPanelOpen() {
+    if (_registeredService && _registeredService !== service) {
+      if (typeof _registeredService.setBluetoothPanelOpen === "function")
+        _registeredService.setBluetoothPanelOpen(root, false)
+      _registeredService = null
+    }
+    if (service && typeof service.setBluetoothPanelOpen === "function") {
+      service.setBluetoothPanelOpen(root, root.opened)
+      _registeredService = service
+    }
+  }
+  onOpenedChanged: _updateBluetoothPanelOpen()
+  onServiceChanged: _updateBluetoothPanelOpen()
+  Component.onCompleted: _updateBluetoothPanelOpen()
+  Component.onDestruction: {
+    if (_registeredService && typeof _registeredService.setBluetoothPanelOpen === "function") {
+      _registeredService.setBluetoothPanelOpen(root, false)
+      _registeredService = null
+    }
+  }
+
+  function refreshBluetoothTelemetry() {
+    if (service && typeof service.refreshBluetoothTelemetry === "function")
+      service.refreshBluetoothTelemetry()
+  }
+  function bluetoothTelemetryStatusText() {
+    if (bluetoothTelemetryState === "loading")
+      return root.tr("bluetooth.statusLoading", "Loading telemetry…")
+    if (bluetoothTelemetryState === "ready")
+      return root.tr("bluetooth.statusReady", "Telemetry ready.")
+    if (bluetoothTelemetryState === "stale")
+      return root.tr("bluetooth.statusStale", "Telemetry is stale. Use refresh to update.")
+    if (bluetoothTelemetryState === "unavailable")
+      return root.tr("bluetooth.statusUnavailable", "Telemetry unavailable. Use refresh to retry.")
+    return ""
+  }
+  function bluetoothAncText() {
+    return root.tr("bluetooth.ancMode", "Bluetooth ANC: {mode}", { mode: root.modeText(root.bluetoothTelemetryMode) })
+  }
+  function batterySourceText() {
+    if (connected) return root.tr("battery.sourceUsb", "Source: USB")
+    if (usesBluetoothTelemetry) return root.tr("battery.sourceBluetooth", "Source: Bluetooth")
+    return root.tr("battery.sourceUnknown", "Source: Unknown")
+  }
+  function caseFreshnessText() {
+    return root.tr("battery.caseFreshnessUnknown", "Case charge: last reported; physical freshness unknown.")
   }
   readonly property var modeOptions: [
     { value: "off", label: root.modeText("off"), shortcut: "O" },
@@ -126,6 +229,7 @@ Panel {
     if (deviceStatus === "permission-denied") return root.tr("status.permissionDenied", "No permission to read the receiver")
     if (deviceStatus === "protocol-error") return root.tr("status.protocolError", "Unsupported receiver response")
     if (deviceStatus === "timeout" || deviceStatus === "busy") return root.tr("status.waiting", "Waiting for receiver data")
+    if (!receiver && bluetoothAudioConnected === true) return root.tr("connection.bluetoothConnected", "Connected via Bluetooth")
     if (!receiver) return root.tr("status.receiverMissing", "USB receiver is not connected")
     if (leftPresent === false && rightPresent === false) return root.tr("status.earbudsUnavailable", "Both earbuds report unavailable")
     if (presenceObserved && leftPresent === null && rightPresent === null) return root.tr("status.presenceUnknown", "Earbud presence is unknown")

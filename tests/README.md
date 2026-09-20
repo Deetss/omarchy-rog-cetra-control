@@ -9,6 +9,7 @@ outside the active plugin; generated helpers in bin/ are not test artifacts.
 | microphone-state | Unknown mute, gesture lengths/counter, obsolete commands |
 | microphone-meter.js | Exact source, active-link/self-monitor gate, null/zero, call exclusion, presence without battery |
 | audio-topology.js | Active direct/processed routes, mixed/foreign inputs, endpoint exclusion, graph limits and call roles |
+| bluetooth.js / bluetooth/run.py | Identity/battery/generation and visibility contracts; complete production Qt observer bindings with controlled native-model fixtures, no hardware operations |
 | contrast.js | Production warning-color guard, dark/light fallback for insufficient contrast |
 | setup-guard.py / runtime-path.py | Explicit unlocked setup admission, private runtime roots and invalid lock objects |
 | setup-install.py | Real isolated compilation, repeat-install inode preservation, compilation failure rollback |
@@ -60,3 +61,18 @@ client already using Cetra. It creates one peak stream for eight seconds, checks
 the physical source and unchanged external routes, then closes stdin and checks
 teardown. External streams appearing/disappearing during the trial invalidate
 its route comparison. Individual samples and PCM are not saved.
+
+## Bluetooth vendor telemetry
+
+The aggregate gate runs `bluetooth-telemetry-native.py`,
+`bluetooth-telemetry.js` and `bluetooth-telemetry/run.py`. Native checks compile
+with libbluetooth and use AF_UNIX socketpairs, never arbitrary Bluetooth targets.
+They exercise the production parser/formatter, verified getter packets, nullable
+percentages including right91/null/93, charging masks, fragmentation, EOF, frame
+limits, CLI validation and busy-reader exclusion. The Qt fixture instantiates the
+complete production QML component with a controlled C++ Process adapter matching
+Quickshell 0.3.1 exit/failed-start ordering; it never starts a second shell.
+JS checks supplement it with wall-clock/cooldown/generation cases and bounded
+shared-view membership. Native Qt tooling including moc is a test dependency.
+Physical case freshness, power consumption, suspend/resume and multimonitor
+acceptance are separate from these offline checks.

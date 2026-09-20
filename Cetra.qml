@@ -11,7 +11,7 @@ CetraViewModel {
   property alias keyTarget: keyCatcher
   property alias lightingPaletteToggle: lightingSection.paletteToggle
   property var languageButton: null
-  readonly property bool showsPercentage: showPercentage && connected && lowestLevel >= 0 && !button.vertical
+  readonly property bool showsPercentage: showPercentage && (connected || usesBluetoothTelemetry) && lowestLevel >= 0 && lowestLevel <= 100 && !button.vertical
   onSettingsExpandedChanged: {
     if (!settingsExpanded) root.focusControl(deviceSettingsToggle)
   }
@@ -20,6 +20,16 @@ CetraViewModel {
   }
   onLanguageExpandedChanged: {
     if (!languageExpanded) root.focusControl(languageButton)
+  }
+  onAudioIdentityChanged: {
+    if (opened && !bluetoothExpanded) Qt.callLater(function () { root.focusControl(root.connectionDetailsButton) })
+  }
+  onBluetoothExpandedChanged: {
+    if (!bluetoothExpanded && opened) Qt.callLater(function () { root.focusControl(root.connectionDetailsButton) })
+  }
+  onConnectedChanged: {
+    if (connected) root.bluetoothExpanded = false
+    if (opened) Qt.callLater(function () { root.focusControl(root.languageButton) })
   }
   onVisibleChanged: { if (!visible) root.close() }
 
@@ -60,7 +70,7 @@ CetraViewModel {
     else if (["1", "2", "3"].indexOf(t) >= 0) root.chooseAncLevel(Number(t))
   }
 
-  visible: receiver || !hideWhenReceiverMissing || deviceStatus === "permission-denied" || deviceStatus === "helper-missing" || deviceStatus === "helper-error" || deviceStatus === "starting" || deviceStatus === "waiting"
+  visible: panelAvailable || bluetoothCandidates.length > 0 || !hideWhenDisconnected || deviceStatus === "permission-denied" || deviceStatus === "helper-missing" || deviceStatus === "helper-error" || deviceStatus === "starting" || deviceStatus === "waiting"
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
   WidgetButton {
@@ -72,15 +82,11 @@ CetraViewModel {
     fixedWidth: vertical ? -1 : barContent.implicitWidth + scaledHorizontalMargin * 2
     fixedHeight: vertical ? Style.bar.iconSlot : -1
     horizontalMargin: 7
-    tooltipText: root.tr("app.tooltip", "{device}\n{status}\n{battery}\n{left}\n{right}\n{case}\n{microphone}", {
+    tooltipText: root.tr("app.tooltip", "{device}\n{status}\n{battery}", {
       device: root.tr("app.deviceName", "ROG Cetra SpeedNova"), status: root.statusLabel,
       battery: root.tr("battery.summary", "Last reported: L {left} / R {right} / Case {case}", {
         left: root.levelText(root.leftLevel), right: root.levelText(root.rightLevel), case: root.levelText(root.caseLevel)
-      }),
-      left: root.tr("report.left", "Left: {report}", { report: root.reportText(root.leftPresent, root.leftCharging, false, true) }),
-      right: root.tr("report.right", "Right: {report}", { report: root.reportText(root.rightPresent, root.rightCharging, false, true) }),
-      case: root.tr("report.case", "Case: {report}", { report: root.reportText(null, root.caseCharging, true) }),
-      microphone: root.tr("microphone.tooltip", "Mic state: unknown / follow headset voice prompt")
+      })
     })
     onPressed: function (button) {
       if (button === Qt.RightButton) root.cycleListeningMode()
@@ -148,7 +154,7 @@ CetraViewModel {
             meta: root.statusLabel
             foreground: root.foreground
             fontFamily: root.fontFamily
-            iconOpacity: root.receiver ? 1.0 : 0.45
+            iconOpacity: root.panelAvailable ? 1.0 : 0.45
             iconComponent: Component { CetraIcon { iconSize: Style.font.display; color: root.foreground } }
             trailingControl: Component {
               ControlButton {
@@ -170,6 +176,7 @@ CetraViewModel {
           LanguageSection { root: panelHost; width: parent.width }
           BatterySection { root: panelHost; width: parent.width }
           NoiseSection { root: panelHost; width: parent.width }
+          ConnectionSection { root: panelHost; width: parent.width }
           MicrophoneSection { root: panelHost; width: parent.width }
           Text {
             textFormat: Text.PlainText

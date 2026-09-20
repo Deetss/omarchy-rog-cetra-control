@@ -57,7 +57,7 @@ with tempfile.TemporaryDirectory(prefix="cetra-qml-", dir="/tmp/opencode") as tm
             if verified:
                 dynamic += 1
                 continue
-            if (path.name in ('CetraService.qml', 'CetraPreferences.qml') and category == 'signal-handler-parameters'
+            if (path.name in ('CetraService.qml', 'CetraPreferences.qml', 'CetraTelemetry.qml') and category == 'signal-handler-parameters'
                     and warning['message'].startswith('Type QProcess::ExitStatus ')
                     and line.strip() in ('onExited: root.watcherStopped()', 'onExited: function (exitCode) {')):
                 # Quickshell 0.3.1 qmltypes references a non-exported Qt enum.

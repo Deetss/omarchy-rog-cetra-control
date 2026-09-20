@@ -511,7 +511,8 @@ and `903`. It does not register device-level `MIC_VOLUME_CHANGED=60`.
 ### Bluetooth HAL comparison (`AacR55ESBT`)
 
 Type descriptor: `0x180149308` (`.?AVAacR55ESBT@@`).
-Primary vtable: `0x180123cd8`.
+Primary vtable: `0x180123d50`.
+Embedded protocol vtable at object+`0x1be0`: `0x180123cd8`.
 COM secondary vtable: `0x180123cf8`.
 Entry points:
 - `AacR55ESBT::SetFunction`: `0x180083240`.
@@ -519,11 +520,16 @@ Entry points:
 
 #### Side-by-side function table
 
+The earlier comparison omitted inherited dispatch. BT GetFunction first calls
+`AacDeviceRFCOMM::GetFunction` at `0x18006df60` and only handles remaining IDs
+locally. The ID 7/8 entries below are corrected; other inherited-ID negative
+claims in this historical table require audit before being treated as proof.
+
 | ID | Name | USB Set | USB Get | BT Set | BT Get | Notes |
 |---|---|---|---|---|---|---|
 | `2` | (Internal) | `0x1800821bf` | `0x180082bbf` | `0x1800832bd` | `0x1800837d3` | Basic device init |
-| `7` | (Internal) | `E_NOTIMPL` | `0x180082c32` | `E_NOTIMPL` | `E_NOTIMPL` | USB only |
-| `8` | `DEVICE_STATUS` | `E_NOTIMPL` | `0x180082d4c` | `E_NOTIMPL` | `E_NOTIMPL` | Polls `12 01`, `12 08`, `12 09` |
+| `7` | (Internal) | `E_NOTIMPL` | `0x180082c32` | `E_NOTIMPL` | Inherited `0x180070200` | BT base dispatch confirmed; previous USB-only claim withdrawn |
+| `8` | `DEVICE_STATUS` | `E_NOTIMPL` | Requires USB base-dispatch audit | `E_NOTIMPL` | `0x180083fa0` via base dispatch | BT getter returns cached status; separate power getter confirmed below |
 | `9` | `AI_MIC_SWITCH` | `0x1800823d7` | `0x180082af2` | `E_NOTIMPL` | `E_NOTIMPL` | Noise reduction toggle |
 | `10` | `SLEEP_TIME` | `0x180082040` | `E_NOTIMPL` | `E_NOTIMPL` | `E_NOTIMPL` | USB sleep timer |
 | `19` | `REG_CALLBACKS`| `0x180081f3d` | `E_NOTIMPL` | `E_NOTIMPL` | `E_NOTIMPL` | Registers events 8, 46, 57, 902, 903 |
@@ -963,3 +969,390 @@ right-earbud prompts during the call, and normal media gesture outside the call.
 - Battery and all three noise-control modes pass hardware readback.
 - Automatic call context is tested in at least one real communication app.
 - No undocumented Host-to-Device command is present in source or UI.
+
+
+## Bluetooth RFCOMM telemetry, 2026-09-16
+
+### Scope and evidence
+
+The user requested Bluetooth protocol research analogous to the USB driver work.
+The official ZIP and HAL were downloaded/extracted again and matched the SHA-256
+values above. No Windows executable was run. No HID reader, vendor setter, audio
+profile change, pairing command, or Bluetooth configuration change was used.
+Research helpers are outside the plugin; this is not a Bluetooth runtime feature.
+
+The connected main audio device advertised Serial Port service `Asus_APP` via a
+live SDP query: record `0x20000005`, RFCOMM channel **24**. A socket connection
+succeeded under the normal user account. This channel must be discovered by SDP
+for other devices/sessions, not assumed universally. USB was absent according to
+the running owner's cache; BlueZ Battery1 simultaneously reported `0%`.
+
+### Recovered transport and getters
+
+All addresses refer to the same HAL image described above.
+
+- Constructor at `0x18009e788` installs primary vtable `0x180123d50`, COM interface
+  vtable `0x180123cf8` at object+8, and protocol vtable `0x180123cd8` at +`0x1be0`.
+- BT GetFunction(8) delegates through `0x18006df60`, primary slot +`0x98`, to
+  `0x180083fa0`; status fields are filled by `0x180084210`. It is implemented,
+  contrary to the earlier table, but reads cached fields rather than polling them.
+- ANC getter: GetFunction(46) -> `0x1800a4c60`; command `0x2512` with no payload
+  at `0x1800a4cca`. Bridge `0x18004b1c0` -> `0x18006e650` -> `0x18006e6d0`
+  -> sender `0x18006f130`.
+- Power getter `0x18006e490` is identified by the string
+  `AacDeviceRFCOMM::GetPowerInfo`; command `0x0712`, no payload.
+- Charging getter `0x18006e570` is identified by
+  `AacDeviceRFCOMM::GetChargingStatus`; command `0x0812`, no payload.
+- Encoder `0x180043eb0` emits `ff length (command_low << 1)
+  (command_high & 0x7f) payload`. There is no USB report prefix/padding.
+- Decoder `0x180043e60` recovers command low from byte2>>1, command high from
+  byte3&0x7f, and PDU type from `((byte2 & 1) << 1) | (byte3 >> 7)`.
+  Dispatcher `0x18006e200` routes type 1 to notifications, 2 to responses, 3 to
+  the error handler. RFCOMM is a stream: reads must handle split/coalesced frames.
+
+### Live responses
+
+One bounded session issued only these statically confirmed getters, at
+01:31:37–01:31:41 Moscow time. The socket was closed afterwards.
+
+| Getter | Request | Response | Decoded payload |
+| --- | --- | --- | --- |
+| Power | `ff 00 24 07` | `ff 04 25 07 05 3b 37 1d` | mode code 5; battery fields 59, 55, 29 |
+| Charging | `ff 00 24 08` | `ff 02 25 08 00 01` | raw side flags 00; case field 01 |
+| ANC | `ff 00 24 25` | `ff 01 25 25 00` | mode code 0 |
+
+The power response parser `0x1800845f0` calls `0x180084a80`, which stores the
+three battery bytes at object+`0x1c71`, +`0x1c72`, and +`0x1b0`. Status packing
+at `0x180084210` places these in the corresponding first-earbud, second-earbud,
+and case fields. Left/right ordering follows the existing USB layout, but a
+marked one-earbud trial over Bluetooth remains necessary for independent live
+confirmation. A new request proves receipt time, not freshness of the case's
+measurement inside the earbuds. Do not treat 29 as a verified live case sensor.
+
+ANC code 0 corresponds to Off in the existing USB mapping. The user reported
+Ambient Sound followed by Noise Cancelling during an earlier, unaligned gesture
+trial. That report does not validate this later read or the Bluetooth enum map.
+Charging values likewise need a marked docking/charging trial before UI use.
+
+### GATT attempt and remaining work
+
+Direct GATT reads returned model `ROG CETRA TRUE WIRELESS SPEEDNOVA`, firmware
+string `Version1.0`, and one vendor byte `40` (hex; meaning unknown, not 64%).
+On the main audio record's vendor service `5052494d-2dab-0341-6972-6f6861424c45`,
+notification subscription on characteristic `43484152-2dab-3141-6972-6f6861424c45`
+succeeded. No Value events arrived in 90 seconds. Two other subscriptions failed
+with Invalid Length. The successful subscription was stopped and Notifying=false
+verified. Gesture timing was not aligned, so silence is not proof of unsupported
+ANC events. Raw btmon capture lacked OS permissions; no HCI trace was collected.
+
+Next acceptance: correlate RFCOMM ANC reads/notifications with marked gestures;
+verify per-side battery ordering and changes, case staleness and charging flags;
+then specify a bounded, single-owner Bluetooth transport with disconnect expiry.
+Preserve unknown native microphone mute. Do not extend the live plugin from this
+one successful read without those checks.
+
+
+### Marked Bluetooth ANC readback, 2026-09-16 afternoon
+
+Each trial used this order: ask the user to switch once and leave the mode;
+receive the spoken prompt as text; connect to the SDP-confirmed `Asus_APP`
+channel; read ANC, power and charging once each; close the socket. No setter,
+notification-enablement request or continuous polling was sent. USB was absent.
+
+| Moscow receipt time | User-reported prompt | ANC response | Result |
+| --- | --- | --- | --- |
+| 13:28:27 | Noise Cancelling | `ff 01 25 25 01` | ANC = 1 |
+| 13:29:11 | Ambient Sound | `ff 01 25 25 02` | Ambient = 2 |
+| 13:29:56 | Noise Cancelling Off | `ff 01 25 25 00` | Off = 0 |
+
+These three marked observations confirm the Bluetooth getter enum on this
+headset/firmware and resolve the earlier unaligned ANC observation. They verify
+request/response readback, not delivery of unsolicited mode-change events or
+Bluetooth setters. A repeated Off chat message described the same trial.
+
+All three power reads returned `ff 04 25 07 05 63 63 5f`: mode code 5 and battery
+fields 99, 99, 95. Those values differ from the earlier 59, 55, 29, establishing
+that this source can change across sessions. This does not independently prove
+per-side assignment or hardware measurement freshness. BlueZ Battery1 still
+reported 0 at 13:28–13:29; it is not interchangeable with these vendor fields.
+Charging replies remained `ff 02 25 08 00 01`; physical case charging was not
+confirmed during these three trials.
+
+Raw timestamped evidence is kept outside the plugin in the local research
+folder `~/.local/state/omarchy/cetra-research/trials.jsonl`. The initial 21-line
+ANC trial set has SHA-256
+`cfe734ca969e3cbe8a5641186ec2a773cc236f418d7beeb9a61cef4b99b19cc4`.
+Temporary helpers from the first session were no longer present after the pause;
+the bounded SDP/getter helpers were reconstructed from the recorded protocol
+and are now stored alongside the evidence. None is started by the plugin.
+
+Remaining hardware acceptance: marked left/right docking and return, case
+charging/staleness, disconnect expiry, and optional unsolicited events. The
+plugin continues to use the first-stage observation-only Bluetooth contract.
+
+
+### Marked docking and RFCOMM availability, 2026-09-16 afternoon
+
+Following the ANC trials, the user confirmed left-only docking in an open case,
+with the right earbud worn. At 13:33:38 Moscow, the power reply was
+`ff 04 25 07 05 61 61 34` (97/97/52) and charging was
+`ff 02 25 08 01 01`. The side flag changed from 00 to 01, consistent with the
+HAL's left charging bit. Equal earbud percentages do not independently identify
+battery order. Case cable connection was not confirmed. The case field changed
+from 95 to 52; this is not evidence of actual discharge over that interval.
+Type-2 ANC and power responses were duplicated within this socket session.
+This is a packet observation, not evidence of duplicate audible prompts.
+
+| User-confirmed condition | Transport observation | Telemetry |
+| --- | --- | --- |
+| Left docked, right worn | Connection and all three getters succeeded | 97/97/52, charging 01 01, ANC 0 |
+| Right docked, left worn | SDP advertised Asus_APP/channel24; BlueZ Connected=true; RFCOMM connect timed out in 5 seconds | No request sent, no values |
+| Same condition, one retry | Connect returned errno16 EBUSY | No request sent, no values |
+| Both returned to ears | New socket connect timed out in 5 seconds | No request sent, no values |
+| Both placed in case, lid closed about 10 seconds, removed; user heard Bluetooth reconnect | Fresh SDP again advertised Asus_APP/channel24; new socket connect timed out in 5 seconds | No request sent, no values |
+
+All failed sockets were closed and diagnostic processes exited. No controller
+restart, removal/re-pairing, audio-profile change, vendor setter or USB access
+was used. A retained PipeWire sink was observed; audible playback was not tested
+in these docking trials. Service discovery and BlueZ Connected=true therefore
+do not establish a usable vendor telemetry connection.
+
+This sequence establishes an observed failure to open the channel after docking,
+not its cause, a permanent right-earbud master role, or a reproducible firmware
+bug. EBUSY following a timed-out connect may also involve host transport state;
+that explanation is unverified. Five-second attempts do not establish permanent
+unavailability. Repeated reconnects were stopped rather than used as a poll loop.
+
+Further integration requires a bounded connection/recovery design, explicit
+unavailable/stale states independent of audio connectivity, and a repeatable
+marked trial that restores vendor access. Last good 97/97/52 values must remain
+historical. Right-side flags, per-side battery order and case freshness remain
+open. The durable research folder includes trials.jsonl and docking-notes.md;
+these are diagnostic artifacts, not plugin services.
+
+### Bounded vendor-channel recovery, 2026-09-16 13:53–13:58 Moscow
+
+After an idle interval, SDP still advertised `Asus_APP` on channel 24, but a
+five-second connection attempt again timed out. Two further bounded trials
+separated connection availability from application protocol decoding:
+
+| Trial | Observed result |
+| --- | --- |
+| Connect-only, 30-second limit, 13:56:32–13:57:02 | Timeout at 30.03 s; no application bytes sent; socket closed |
+| Explicit BlueZ Device1 disconnect/reconnect, 13:57:20–13:57:21 | Both calls succeeded; Connected=false was observed between them, then Connected=true |
+| Fresh SDP after that reconnect | Asus_APP/channel 24 still advertised |
+| Getter client with a 30-second connection limit, 13:57:39–13:58:09 | Timeout at 30.03 s before the first getter; socket closed |
+
+The host-side per-device reconnect did not restore the vendor channel in this
+trial. This does not identify a firmware defect, a permanent earbud role, or a
+host-side cause. Audible playback was not rechecked. No controller restart,
+pairing removal, profile selection change or vendor setter was performed.
+BlueZ Connected=true was observed after the trial; USB remained absent.
+
+The existing standalone Python client was extended with stage/errno/timing logs,
+5/30-second connect limits, connect-only mode, strict getter payload lengths and
+bounded frame processing. It still sends only the three verified getters, has
+no retry loop and is not started by the plugin. Ten offline tests passed;
+an isolated premature-close-log mutation failed those tests, confirming that
+the corrected closure-order assertions actually detect the regression.
+These checks verify diagnostic behavior, not hardware recovery.
+
+Evidence remains in `~/.local/state/omarchy/cetra-research/`: `trials.jsonl`,
+`recovery/device-reconnect.jsonl`, the client/tests and worker review records.
+One Gemini analysis assignment failed before returning an answer; three others
+returned client review, implementation and corrected tests. The coordinator
+rejected an unsupported buffer finding and the initial ineffective closure test.
+
+Next investigation should capture the Bluetooth connection exchange during a
+single failed attempt to locate the failure. HCI monitor access was unavailable
+to the current unprivileged session; no privileged capture was performed.
+Do not integrate or automatically reconnect this transport until recovery and
+disconnect/stale-state behavior have repeatable evidence. Battery order,
+right charging flags, case freshness and native microphone state remain open.
+
+### Privileged HCI capture, 2026-09-16 afternoon
+
+The user authorized privileged capture. `sudo -n` required authentication;
+bounded `btmon` capture and read-only Bluetooth debugfs inspection succeeded
+through Polkit. Captures remain private local files, outside the repository.
+Only relevant signalling and reviewed source excerpts were supplied to Gemini.
+
+Two connect-only attempts again timed out at 30 seconds. The second capture
+covered the entire attempt. Debugfs mapped the target's L2CAP CID 0x0041 to
+RFCOMM PSM 3; the vendor DLCI was 48 (server channel 24).
+
+| Capture 02 relative time | Direction | Frame | Interpretation |
+| --- | --- | --- | --- |
+| 12.780891 s | Host to headset | `03 ef 15 83 11 30 f0 07 00 9b 02 00 07 70` | Parameter negotiation request: DLCI 48, MTU 667, credits 7 |
+| 13.082095 s | Headset to host | `01 ef 15 81 11 30 e0 07 00 9b 02 00 07 aa` | Parameter negotiation response; credit flow control accepted |
+| 13.082165 s | Host to headset | `c3 3f 01 a1` | SABM: open vendor DLC |
+| 42.784134 s | Host to headset | `c3 53 01 40` | DISC during timeout cleanup |
+
+No later inbound frame on that CID appears in this capture: neither UA accepting
+the vendor DLC nor DM rejecting it. An in-flight debugfs snapshot showed DLCI 48
+in state 5 (`BT_CONNECT` in the installed headers), with MTU 667 and credits 7/7.
+The user subsequently confirmed both earbuds were in their ears. The separate
+existing HFP DLCI 2 remained connected.
+
+The coordinator checked frame lengths/FCS values and the installed state enum;
+Gemini independently agreed with frame decoding. This localizes the observed
+failure to waiting after PN response and host SABM transmission. It does not
+prove remote receipt/processing of SABM or identify a firmware root cause.
+HCI completed-packet events are not RFCOMM acceptance. The precise cleanup
+trigger (kernel timer versus closing the timed-out socket) was not established.
+
+Because capture began after the L2CAP connection existed, btmon labelled these
+payloads unknown PSM 0. An initial keyword search missed the raw RFCOMM frames;
+its silence interpretation and the resulting local security-wait hypothesis
+were rejected. The actual PN request/response contradicts that hypothesis for
+these attempts. Upstream Linux RFCOMM core/sock sources were used as references,
+not asserted to match the installed kernel build exactly.
+
+Evidence: `~/.local/state/omarchy/cetra-research/capture/verified-evidence.md`,
+private btsnoop files, in-flight snapshot and worker review records.
+Capture 02 SHA-256:
+`58826534bebdf29ee6237325a7965105e30ea8c8412964dfd7fb95efc9b1cd49`.
+No vendor application bytes, settings changes, controller restart or pairing
+reset were used in these two attempts.
+
+### Controlled case-cycle recovery and successful trace
+
+The user placed both earbuds in the case and closed it. At 14:18:33 Moscow,
+BlueZ Connected=false was verified before asking the user to remove them.
+Capture 03 began while disconnected. The user then removed both earbuds and
+confirmed hearing the Bluetooth connection prompt. Fresh SDP still returned
+Asus_APP/channel 24.
+
+At 14:19:44 the unchanged getter client connected in about 56 ms; all three
+reads and closure completed in about 147 ms:
+
+- ANC: `ff 01 25 25 00` — Off.
+- Power: `ff 04 25 07 05 5b 5c 64` — mode code 5, battery fields 91/92/100.
+- Charging: `ff 02 25 08 00 01`.
+
+An independent reopening at 14:21:00 also succeeded (about 668 ms total),
+returning the same values. This verifies recovery for this case cycle and the
+ability to reopen the vendor channel; it is not a repeated docking/recovery
+acceptance campaign. Battery order and physical case measurement freshness
+remain unverified despite fresh protocol replies.
+BlueZ Battery1 still reported 0 after these successful vendor replies; it must
+not replace or be merged with the three vendor battery fields.
+
+Capture 03 contains a new ACL link and a notable RFCOMM difference:
+
+| Failed capture 02 | Successful capture 03 |
+| --- | --- |
+| Existing mux uses host-initiated direction; HFP DLCI 2 | Headset initiates the mux with SABM on DLCI 0; host answers UA; HFP uses DLCI 26 |
+| Same server channel 24 maps to DLCI 48 | Same server channel 24 maps to DLCI 49 |
+| PN response, then SABM without observed UA/DM | PN response, SABM, peer UA about 18 ms later, modem-status exchange, getter replies |
+| DISC around timeout | DISC after reads, acknowledged by peer UA |
+
+Both directions negotiate MTU 667, priority 7 and seven initial credits for the
+vendor DLC. DLCI 48/49 are direction-dependent identifiers for the same server
+channel, not different services. The differing mux initiator is a hypothesis
+for a future controlled comparison, not proof of the cause: physical case
+state, elapsed time and the fresh link also changed. Do not force DLCI values,
+change kernel behaviour or identify permanent left/right earbud roles from it.
+Gemini's independent comparison agreed with these differences and recommended
+standard socket/SDP use, bounded connection timeouts and explicit unavailable
+state. Its proposed causal A/B trial remains unperformed; initiation direction
+must be captured rather than assumed from which application starts first.
+
+The successful btsnoop capture and getter transcript are retained privately in
+the research directory. No Bluetooth service restart, re-pairing, software
+profile change, vendor setter or USB HID access was needed for this recovery.
+
+### Marked right docking after recovery, 2026-09-16
+
+At 14:28:22 Moscow, a fresh SDP lookup returned Asus_APP/channel24 and the
+baseline getter session succeeded: ANC0, power `[5,89,90,100]`, charging
+`[0,1]`. Both earbuds had previously been returned to the ears; there was no
+new contemporaneous confirmation of that baseline physical state.
+
+The user then confirmed the right earbud in the open case, with the left earbud
+remaining worn. At 14:31:30, BlueZ Connected=true and fresh SDP/channel24 were
+observed. The bounded getter session succeeded in about 115 ms:
+
+- ANC: `ff 01 25 25 00`.
+- Power: `ff 04 25 07 05 59 5b 64` — fields 89/91/100.
+- Charging: `ff 02 25 08 10 01`.
+
+The side mask changed 00 to 10 while the second battery field rose 90 to 91,
+consistent with the HAL's second/right charging bit. This is a marked protocol
+observation, not electrical charging-current measurement or proof of case
+freshness. The earlier vendor-channel failure did not recur in this trial;
+this does not establish deterministic docking behaviour or repeated recovery.
+
+The earlier bounded HCI capture had ended before the user's confirmation; no
+simultaneous HCI handshake or mux-direction claim is made for this getter
+session. Timestamped replies and the confirmed physical condition are retained
+in the private research directory.
+
+The user then confirmed both earbuds returned to their ears. At 14:32:46,
+Connected=true and fresh SDP/channel24 were observed; all getters succeeded
+in about 175 ms. ANC remained 0, power was `[5,89,90,100]`, and charging returned
+to `[0,1]`. Thus the observed side-mask sequence was `00 -> 10 -> 00` across
+baseline, marked right docking and marked return. This supports the right-side
+charging interpretation together with the HAL evidence. The second battery
+field's `90 -> 91 -> 90` sequence is not proof of physical charge/discharge on
+that timescale; case field100 and case flag01 remained unverified physically.
+
+Vendor access survived this complete docking/return cycle. Since the failure
+did not recur, no additional closed-case recovery was exercised. Keep the
+earlier failure and one successful recovery documented; do not call the issue
+fixed or claim repeated recovery acceptance from a successful continuity test.
+
+### Marked lid-only comparison, 2026-09-16
+
+The user kept the right earbud in the case and the left in the ear, confirming
+each lid transition. Every stage had BlueZ Connected=true, fresh SDP identifying
+Asus_APP/channel24, and one successful bounded ANC/power/charging getter session.
+
+| Moscow time | Confirmed lid condition | Power payload | Charging payload | Total session |
+| --- | --- | --- | --- | --- |
+| 14:35:59 | Open | `05 59 5b 64` (89/91/100) | `10 01` | 126 ms |
+| 14:37:15 | Closed | `05 59 ff 64` (89/unavailable/100) | `10 01` | 148 ms |
+| 14:38:12 | Reopened, right still docked | `05 58 5d 64` (88/93/100) | `10 01` | 136 ms |
+
+ANC remained Off in all three responses. The second battery field followed
+`91 -> ff -> 93` while the vendor channel stayed responsive at each read. This
+marked result, the previous right charging-mask trial and the HAL slot ordering
+strongly support the second battery field corresponding to the right earbud.
+It does not establish that every lid closure always produces this behaviour.
+
+`ff` is outside the valid percentage domain and must invalidate that field,
+without presenting 0%, 255%, or the preceding 91%. It does not by itself establish
+physical power-off, absence, docking or loss of the overall Bluetooth connection.
+The valid sibling fields remain reported values; fresh replies do not prove
+fresh hardware measurements. The unchanged case value 100 and case flag 01 still
+lack a marked physical charging/freshness check. Neither retained charging flags
+nor percentage changes alone measure electrical current.
+
+The private 90-second capture covered 14:36:18–14:37:48, including the closed-lid
+read. It shows vendor DLCI49 SABM/UA, successful exchange, then DISC/UA; baseline
+and reopened reads are evidenced by JSONL, outside that capture window. Capture
+SHA-256: `9b2f873870ec49760e5e7816d1668c7682d63ced7aeab7501d8f75667190f3a5`.
+Artifacts and the independent Gemini review are in the private `lid-test/`
+research folder. The coordinator accepted per-field invalidation and rejected
+wording that would imply all other measurements were live or uncached.
+
+Future vendor telemetry acceptance must exercise `91 -> null -> 93` while the
+transport stays available, with no fallback to an older percentage. Connection,
+individual battery validity, reported charging flags and measurement freshness
+are separate facts. BlueZ Battery1 must remain a distinct source. This is a
+research/acceptance result, not an implemented vendor-telemetry UI change.
+
+### Conflicting battery reports and ANC refresh — 2026-09-16 evening
+
+During compact-panel acceptance, the user reported unchanged 100% earbud charge
+and 0% in the system Bluetooth panel. A new installed `cetra-bt-read` invocation
+returned left100/right100/case85, all charging flags false; direct BlueZ Battery1
+Percentage read returned 0. A subsequent vendor session returned the same battery
+fields. These are fresh transport responses, not proof of fresh physical battery
+measurements. Do not substitute one source for the other or infer battery drain.
+
+The user also reported that the ANC label did not react. Successive standalone
+vendor replies returned anc then off, and a later rendered panel showed Off.
+Gesture timing was not marked, so this neither proves a stuck label nor verifies
+gesture-to-panel latency. Current polling is 15 seconds with the panel open and
+120 seconds closed; a marked mode comparison remains an acceptance check.

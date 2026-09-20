@@ -1,5 +1,21 @@
 # Development notes
 
+## Coordinator and worker roles
+
+- The primary agent coordinates the team: define bounded tasks and acceptance
+  criteria, delegate implementation, inspect results, integrate accepted patches,
+  and verify the actual behavior. Do not default to doing the workers' work.
+- Use `gemini-swarm` and the installed `opencode-gemini` helper for substantial
+  independent tasks, explicitly pinned to `ninitux/gemini-3.8-flash-high`.
+  Workers must not spawn children or invoke Astra, directly or indirectly.
+- The current helper returns analysis and proposed patches without tool access.
+  The coordinator supplies reviewed context, applies accepted patches and owns
+  hardware operations and final checks. Worker claims alone are not evidence.
+- The coordinator may directly correct frontend/UI defects when needed.
+  If delegation is unavailable, report that limitation; do not silently switch
+  models or take over substantial implementation. Follow higher-priority host
+  instructions and explicit user exceptions.
+
 ## Quick Reference
 
 - **Plugin ID:** `io.github.pavellizunov.rog-cetra-control`

@@ -6,7 +6,7 @@ const vm = require('node:vm');
 require('./keyboard.js');
 
 const dir = path.resolve(__dirname, '../..');
-const { service: source, widget: widgetSource } = require('../qml-source.js');
+const { read, service: source, widget: widgetSource } = require('../qml-source.js');
 const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
 const block = id => source.match(new RegExp(`^  (?:Process|Timer) \\{\\n    id: ${id}\\b[\\s\\S]*?^  \\}`, 'm'))[0];
 const timer = (changed = () => {}) => ({
@@ -108,7 +108,7 @@ function fixture() {
     view.root = view;
     view.i18n = { text: (key, fallback, params) => fallback.replace(/\{(\w+)\}/g, (match, name) => params?.[name] ?? match) };
     view.setting = (name, fallback) => view.settings[name] ?? fallback;
-    for (const name of ['service', 'deviceStatus', 'receiver', 'connected', 'leftLevel', 'rightLevel', 'caseLevel',
+    for (const name of ['service', 'deviceStatus', 'receiver', 'connected', 'bluetoothTelemetry', 'usesBluetoothTelemetry', 'leftLevel', 'rightLevel', 'caseLevel',
       'listeningMode', 'pendingMode', 'ancLevel', 'ancAdaptive', 'voicePrompt', 'lighting', 'callContextActive',
       'pendingSettings', 'settingsRequestTimedOut', 'settingsStatusKey',
       'useThemeColor', 'lightingRgb', 'selectedLightingColor', 'colorApplyEffect'])
@@ -128,6 +128,35 @@ function fixture() {
 }
 
 const cases = {
+  'Bluetooth projection uses one source and never unlocks USB controls': () => {
+    const { ctx, ready, widget, writes } = fixture();
+    ready();
+    ctx.connected = false;
+    ctx.bluetoothTelemetry = { left: 89, right: 91, case: 100, mode: 'ambient',
+      left_charging: false, right_charging: true, case_charging: true };
+    const a = widget(), b = widget();
+    assert.equal(a.connected, false);
+    assert.equal(a.usesBluetoothTelemetry, true);
+    assert.equal(a.leftLevel, 89);
+    assert.equal(b.rightLevel, 91);
+    ctx.bluetoothTelemetry = { ...ctx.bluetoothTelemetry, right: null };
+    assert.equal(a.rightLevel, null);
+    assert.equal(b.leftLevel, 89);
+    const before = writes.length;
+    a.opened = true;
+    a.handleTextKey('n');
+    a.cycleListeningMode();
+    assert.equal(writes.length, before, 'Bluetooth display must not enable USB writes');
+    ctx.applyDeviceState(JSON.stringify({ status: 'ok', receiver: true, connected: true,
+      left: 31, right: 32, case: 33, mode: 'off' }));
+    assert.equal(a.usesBluetoothTelemetry, false);
+    assert.deepEqual([a.leftLevel, b.rightLevel, a.caseLevel], [31, 32, 33]);
+    ctx.connected = false;
+    ctx.bluetoothTelemetry = { ...ctx.bluetoothTelemetry, right: 93 };
+    assert.equal(a.rightLevel, 93);
+    ctx.bluetoothTelemetry = null;
+    assert.deepEqual([a.leftLevel, b.rightLevel, a.caseLevel], [null, null, null]);
+  },
   'battery and mode freshness veto historical values and invalid domains': () => {
     const {ctx,ready}=fixture(); ready(false);
     const data={status:'ok',receiver:true,connected:true,left:50,right:60,case:70,mode:'anc',battery_fresh:true,mode_fresh:true};
@@ -362,7 +391,7 @@ const cases = {
     assert.deepEqual(Object.keys(a.pendingSettings), []);
     assert.equal(ctx.settingsRequestTimeout.running, false);
     assert.match(block('settingsRequestTimeout'), /interval: 250\s+repeat: true/);
-    assert.doesNotMatch(source, /Date\.now|deadline:/);
+    assert.doesNotMatch(read('CetraService.qml'), /Date\.now|deadline:/); // USB settings use scheduler ticks; Bluetooth has separate expiry.
   },
   'matching confirmation before the final tick cancels expiry without false timeout': () => {
     const { ctx, ready, tick, writes } = fixture();
@@ -411,7 +440,7 @@ const cases = {
     assert.doesNotMatch(source, /\bbar\b\s*:/);
     assert.match(source, /readonly property color themeColor: Color\.accent/);
     assert.doesNotMatch(widgetSource, /\b(?:Process|Timer)\s*\{|Quickshell\.Io|deviceWatchProc|callContextProc|onAlwaysCallContextChanged|service\.\w+\s*=(?!=)/);
-    assert.equal((source.match(/^  Process \{/gm) || []).length, 2);
+    assert.equal((source.match(/^  Process \{/gm) || []).length, 3); // settings, sole USB owner, one-shot Bluetooth reader.
     assert.doesNotMatch(source, /findEntryLocation|shellConfig/);
     assert.match(source, /shell\.barConfig\.layout/);
     assert.match(widgetSource, /readonly property var service: bar\?\.shell\?\.serviceFor\(root\.moduleName\) \|\| null/);
@@ -440,7 +469,7 @@ const cases = {
     invoke('deviceWatchRestart', 'onTriggered');
     invoke('deviceWatchProc', 'onStarted');
     assert.deepEqual(writes, ['call on\n']);
-    assert.match(source, /AudioTopology \{ id: audioTopology; active: root.hostReady && root.receiver \}/);
+    assert.match(source, /AudioTopology \{\s*id: audioTopology\s*active: root.hostReady\s*usbAvailable: root.receiver/);
   },
   'FailedToStart without exited retries on each timer expiry and recovers': () => {
     const { ctx, writes, ready, invoke, watcherRunningChanged } = fixture();
@@ -665,7 +694,7 @@ const cases = {
     assert.equal(view.reportText(null, false, true), 'Not charging');
     assert.match(widgetSource, /text: root\.tr\("battery\.lastReported", "Battery values are last reported\."\)/);
     assert.equal((widgetSource.match(/root\.tr\("battery\.lastReported"/g) || []).length, 1);
-    assert.match(widgetSource, /visible: text !== ""\s+text: modelData.present === true && modelData.value === null\s*\? root.tr\("battery.presentNoLevel"/);
+    assert.match(widgetSource, /visible: text !== "" && \(!root\.usesBluetoothTelemetry \|\| modelData\.charging === true\s*\|\| modelData\.present === true \|\| modelData\.present === false\)\s+text: modelData.present === true && modelData.value === null\s*\? root.tr\("battery.presentNoLevel"/);
     assert.match(widgetSource, /: root\.batteryStatusText\(modelData.present, modelData.charging, modelData.isCase\)/);
   },
   'event detector owns no subprocess needing descendant cleanup': () => {

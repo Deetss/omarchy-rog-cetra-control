@@ -228,3 +228,22 @@ assert.match(catcher, /onCloseRequested: root.close\(\)/);
 assert.match(source, /Keys.onTabPressed: root.moveFocus\(1, true\)/);
 assert.match(source, /Keys.onBacktabPressed: root.moveFocus\(-1, true\)/);
 console.log('PASS keyboard: 4 behavioral groups + control wiring (offline, not Qt event delivery)');
+
+// Disconnect and selection collapse preserve keyboard access without an action.
+{
+  const {ctx, item, actions} = fixture();
+  const language = item('language'), usb = item('usb-action');
+  ctx.languageButton = language;
+  const pending = [];
+  ctx.Qt.callLater = fn => pending.push(fn);
+  usb.forceActiveFocus();
+  ctx.connected = false;
+  vm.runInContext(source.match(/onConnectedChanged: \{([\s\S]*?)^  \}/m)[1], ctx);
+  usb.visible = false;
+  pending.shift()();
+  assert.equal(language.activeFocus,true);
+  assert.deepEqual(actions,[]);
+  ctx.opened = false;
+  vm.runInContext(source.match(/onConnectedChanged: \{([\s\S]*?)^  \}/m)[1],ctx);
+  assert.equal(pending.length,0);
+}
