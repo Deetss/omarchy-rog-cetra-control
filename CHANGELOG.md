@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — Bluetooth update
+## 1.8.0 — Bluetooth telemetry
 
 - Keep the panel available for the explicitly selected Bluetooth audio device
   when USB is absent. Observe actual playback/capture routes and profile support.
@@ -11,8 +11,10 @@
   readers; retain manual refresh after a cooldown and expire stale reports.
 - Keep connection details collapsed and shorten the hover tooltip on both
   transports. Bluetooth ANC remains read-only; native mute stays unknown.
-- Live battery progression, marked ANC updates and vendor-channel recovery are
-  still pending. This development update has not been submitted to Marketplace.
+- Marked Bluetooth-only trials matched ANC, Ambient and Off; reported earbud
+  charge changed, and telemetry recovered after a case cycle without Refresh.
+  Case freshness, battery cost, live suspend/resume and Bluetooth microphone
+  capture remain outside the verified scope.
 
 ## 1.7.0 — Marketplace accepted 2026-09-18
 

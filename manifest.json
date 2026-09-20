@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "io.github.pavellizunov.rog-cetra-control",
   "name": "ROG Cetra Control",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "author": "PavelLizunov",
   "license": "MIT",
-  "description": "Battery, noise control, lighting, optional microphone level, and capture-driven call context for ROG Cetra True Wireless SpeedNova.",
+  "description": "USB controls and Bluetooth battery/ANC status for ROG Cetra True Wireless SpeedNova; optional USB microphone level.",
   "kinds": [
     "bar-widget",
     "service"
@@ -16,7 +16,7 @@
   },
   "barWidget": {
     "displayName": "ROG Cetra Control",
-    "description": "Battery status, noise control, microphone level, and capture-driven call context for ROG Cetra True Wireless SpeedNova.",
+    "description": "USB controls and Bluetooth battery/ANC status for ROG Cetra True Wireless SpeedNova.",
     "category": "Audio",
     "allowMultiple": false,
     "defaultSection": "right",

@@ -2,7 +2,8 @@
 
 Updated: 2026-09-20. Status: Bluetooth development merged into local main after
 Marketplace acceptance of the USB release. Automatic retry follow-up is under
-verification; live battery progression and marked ANC acceptance remain open.
+verification at the initial checkpoint; the marked follow-up below now confirms
+changing reported battery, all three modes and telemetry-loss recovery.
 This extends SDD-BLUETOOTH.md for vendor reads; publication is separate.
 
 ## Intent and invariants
@@ -32,7 +33,7 @@ source. No additional Python runtime or package is required.
   JSON and rejects late generations/addresses/USB transitions.15s watchdog,
   bounded shutdown, no overlap while an earlier child terminates.
 - Automatic read on eligible connection;15s cadence with a panel open,120s
-  closed after success. Failed completed transactions retry after30/60/120/240/300s,
+  closed after success. Failed completed transactions retry after 30/60/120/240/300s,
   capped at300s. No retry starts while the previous child terminates. Success
   resets the delay; eligibility/address/generation changes cancel and reset it.
   Manual refresh is rate-limited, including30s cooldown after failure; an accepted
@@ -57,7 +58,7 @@ Run the repository aggregate tests, manifest validation and diff checks. Inspect
 the installed panel and a bounded actual helper read, confirm one USB owner and
 valid cache. Preserve unresolved case freshness, native mute, cause of earlier
 RFCOMM failure, and unperformed suspend/multimonitor acceptance. Runtime delivery
-uses the existing unlocked-shell guard. The September20 request authorizes main
+uses the existing unlocked-shell guard. The September 20 request authorizes main
 integration and update preparation; the earlier acceptance below is historical.
 
 ## Acceptance — 2026-09-16
@@ -118,3 +119,11 @@ are unchanged. No publication is included in the commit request.
   installed panel showed USB94/95/89 and Ambient; one cetra-watch process owned
   USB, its status cache was valid JSON and logging continued. No Cetra QML errors
   were found. Bluetooth live recovery and marked ANC acceptance are still pending.
+
+## Marked follow-up — September 20, 15:09
+
+All three user-reported ANC prompts matched the Bluetooth-only installed panel.
+Earbud reports changed 89/88 to 87/87. A closed-case trial cleared data and a later
+automatic attempt recovered 87/89/95 without Refresh. The main BlueZ connection
+flag stayed true in the samples; this proves telemetry recovery for that trial,
+not a full link reconnect or every failure mode. See ACCEPTANCE-2026-09-20.md.

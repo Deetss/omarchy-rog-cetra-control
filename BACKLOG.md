@@ -9,8 +9,15 @@ evidence. The detailed pre-modularization audit is preserved in
 Marketplace accepted 1.7.0 at `0b491be` on 2026-09-18, following the documentation
 rename requested in issue6873. The Bluetooth update is now authorized for main
 integration and development; the previous acceptance does not cover this update.
-Battery freshness, marked ANC updates and retry recovery remain update acceptance
-items below. The following release-preparation notes describe the earlier baseline.
+Version 1.8.0 packages read-only Bluetooth telemetry and bounded automatic retries.
+Marked September 20 tests passed all three ANC mappings, changing earbud reports,
+clearing unavailable data and automatic recovery after a case cycle. See
+ACCEPTANCE-2026-09-20.md. Physical case/battery freshness, energy use and original
+channel-failure causality remain limitations, not claimed fixes. Final candidate
+tests, manifest/diff checks and release-document review passed. Exact-commit
+Marketplace submission remains the delivery step; old approval does not cover it.
+
+The following release-preparation notes describe the earlier 1.7.0 baseline.
 
 Version 1.6.0 is published as a GitHub pre-release at commit d5a687b, not a stable
 release. Do not overwrite existing tags. Automated checks passed on that snapshot;
@@ -21,7 +28,7 @@ The user accepted the documented compatibility/test limitations and requested
 release preparation. Version 1.7.0 is the candidate. Accepted limitations below
 remain visible; this decision is not a claim that omitted tests passed.
 
-## P0 — release acceptance
+## Historical 1.7.0 release acceptance
 
 | ID | Implementation / evidence | Remaining acceptance |
 | --- | --- | --- |
@@ -125,6 +132,10 @@ adaptations are in SDD-BLUETOOTH.md; this is not a publication/readiness claim.
   Battery1 returned 0. Vendor ANC reads changed from anc to off between reads;
   the user's corresponding gestures were not marked. Verify physical battery
   progression and a marked gesture-to-panel update before accepting freshness.
+- September 20 follow-up: marked ANC/Ambient/Off matched; reports changed from
+  89/88/89 to 87/87/89. A closed-case trial cleared telemetry, then automatic retry
+  restored 87/89/95 with no Refresh action. This closes those observed UI checks;
+  physical measurement accuracy and firmware failure causality remain unproven.
 
 ## P1 — runtime and host integration
 

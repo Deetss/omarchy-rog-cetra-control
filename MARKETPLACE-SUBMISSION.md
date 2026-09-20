@@ -1,53 +1,49 @@
-# Marketplace submission draft — 1.7.0
+# Marketplace update — 1.8.0
 
-Prepared only. Do not submit until the complete reviewed candidate is committed
-and available on the public default branch. Record that commit in the issue notes.
+Use the existing-listing verification form, not a duplicate plugin submission.
+After the final candidate is committed and pushed, insert its full 40-character
+main SHA under Target commit. The request body below is the complete draft.
+Keep the accepted 1.7.0 snapshot and existing tags unchanged while review is pending.
 
-## Repository URL
+### Verification action
+
+Verify and publish a newer upstream commit
+
+### Plugin ID
+
+io.github.pavellizunov.rog-cetra-control
+
+### Repository URL
 
 https://github.com/PavelLizunov/omarchy-rog-cetra-control
 
-## Category
+### Target commit
 
-Hardware
+(To be filled from the exact validated candidate after commit.)
 
-## Tags
+### Verification acknowledgment
 
-Bar, Media, Quickshell
+- [x] I understand that only the exact target commit can become a verified marketplace snapshot and that verification is not a security audit.
 
-## Maintainer notes
+### Standard installation acknowledgment
 
-ROG Cetra Control 1.7.0 supports the ASUS ROG Cetra True Wireless SpeedNova USB
-receiver (0b05:1ad3, interface 3). It provides battery/status, ANC, lighting, voice
-settings and optional microphone signal level in the existing Omarchy shell.
+_Not requested. The existing manual setup requirement is unchanged._
 
-One source-built cetra-watch owns HID. cetra-peak is an optional audio-only libpulse
-client; cetra-status performs bounded settings readback and offline fixtures.
-Setup compiles local sources and may install base-devel, hidapi, libpulse and
-pkgconf. It requires jq/coreutils and an explicitly unlocked running shell.
-Runtime requires a private XDG_RUNTIME_DIR and the installed Quickshell PipeWire API.
+### Maintainer notes
 
-The plugin runs unsandboxed with user permissions. It has no application network
-requests or PCM persistence. Local diagnostics are disclosed and can be disabled
-with CETRA_DIAGNOSTICS=0. Hardware mute is always Unknown. Continuous background
-capture can suppress native media taps; no other application's configuration is
-changed. README documents installation, update, removal and accepted limitations.
+ROG Cetra Control 1.8.0 adds read-only Bluetooth battery/ANC telemetry, automatic
+refresh/retry and a compact panel. USB remains the control transport; native
+microphone mute remains unknown. No pairing, profile switching or unverified
+hardware writes are added. No AGENTS.md files or prebuilt executables are included.
 
-Regression tests, scoped QML lint, isolated setup and named sanitizer suites pass.
-Live results and limits are in ACCEPTANCE-2026-09-14.md. Suspend/resume and a second
-monitor are explicitly untested. Self-review is not independent review.
+The source-built Bluetooth reader adds bluez-libs/libbluetooth. Existing manual
+setup builds four helpers and requires an unlocked Omarchy session. The plugin
+runs unsandboxed; Bluetooth connects only to the selected device. README lists
+dependencies, diagnostics, installation/removal and known limitations.
 
-Publication commit: **fill after authorized commit/push; never use the 1.6.0 SHA**.
-
-## Author checklist
-
-The author must confirm the official form's checkboxes personally, including
-permission to submit the plugin and preview assets. They are deliberately not
-pre-checked here. The existing preview predates the microphone meter; it is labeled
-historical in README. A preview is optional under the publishing guide.
-
-Form verified during preparation:
-https://github.com/omacom/omarchy-plugin-marketplace/issues/new?template=submit-plugin.yml
-
-Marketplace structural/security-baseline results and maintainer approval have
-not been obtained for this local candidate.
+The exact candidate passes the repository tests, QML lint, manifest and whitespace
+checks. Marked Bluetooth-only trials matched ANC/Ambient/Off, showed changing
+reported battery and recovered telemetry after a case cycle without Refresh.
+Physical battery/case freshness and power impact are not established. Live
+suspend/resume, multimonitor and Bluetooth microphone capture remain unverified.
+Details: ACCEPTANCE-2026-09-20.md and RELEASE-NOTES-1.8.0.md in the target commit.

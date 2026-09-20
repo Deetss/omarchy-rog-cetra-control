@@ -1,3 +1,16 @@
+# Current checkpoint — 1.8.0 update preparation
+
+September 20 marked Bluetooth trial completed on runtime `e494e05`: all three
+voice-prompt modes matched the panel; earbud reports changed; closed-case data
+cleared and returned automatically after the user removed the earbuds. Full
+BlueZ link disconnection was not observed. See ACCEPTANCE-2026-09-20.md.
+
+The 1.8.0 metadata/docs candidate passed aggregate tests, manifest/diff checks
+and release-document review; next is the existing-listing update workflow. No new Marketplace approval is claimed. Keep
+physical freshness, power cost, native mute and deferred host tests explicit.
+
+---
+
 # Bluetooth development checkpoint — 2026-09-16
 
 ## Resumed — 2026-09-20

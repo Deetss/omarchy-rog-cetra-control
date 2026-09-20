@@ -2,14 +2,13 @@
 
 Battery status, noise control, Aura lighting and headset voice-prompt settings
 for ASUS ROG Cetra True Wireless SpeedNova over its USB receiver (`0b05:1ad3`,
-interface 3). This development tree also observes Bluetooth audio connection,
+interface 3). Bluetooth support observes audio connection,
 routes, per-earbud/case charge and ANC mode. Hardware controls still require USB; other
 Cetra models are not supported.
 
 ![ROG Cetra Control panel](preview.png)
 
-This working tree extends the 1.7.0 baseline with an unreleased Bluetooth status
-stage. See [SDD-BLUETOOTH-TELEMETRY.md](SDD-BLUETOOTH-TELEMETRY.md) for vendor reads and
+Version 1.8.0 adds read-only Bluetooth telemetry. See [SDD-BLUETOOTH-TELEMETRY.md](SDD-BLUETOOTH-TELEMETRY.md) for vendor reads and
 [BACKLOG.md](BACKLOG.md) for acceptance limits. The preview predates Bluetooth
 status and does not show the current panel.
 
@@ -47,7 +46,7 @@ reported earbud percentage.
 - **Noise control:** Off, ANC and Ambient. In ANC, select Low/Mid/High or Adaptive.
   A manual level requests Adaptive Off when its current state is On or Unknown.
 - **Battery:** percentages are last-reported values. Missing data is not proof of
-  case placement. Detailed availability/charging observations are in the tooltip.
+  case placement. Bluetooth route and charging explanations are under **Details**.
   A present earbud with missing battery reports stays visibly available with
   "Available; battery unknown". Its percentage is not copied from the other earbud
   or replaced with an old log value.
@@ -64,7 +63,7 @@ stale battery values cannot re-enable controls. Pending settings wait up to 48
 readback cycle. A late matching reply clears the error without repeating a write.
 The selected state is readback, not an optimistic click result.
 
-### Bluetooth status (development)
+### Bluetooth status
 
 The compact panel shows battery, source, last-reported notice, read-only Bluetooth
 ANC and Refresh. Connection routes, profile/LE explanations, system Battery1,
@@ -94,9 +93,13 @@ pair, scan, or change audio profiles. No name-based automatic selection is used.
   connection permits another initial attempt. Reports expire after three
   minutes. Case charge/charging flags are last reported, not proof of fresh
   physical measurements. This cadence has not been measured for battery impact.
+  BlueZ may retain a connected flag after the audio endpoint disappears: the
+  header then stays connected while missing telemetry clears and retries.
 - The separate **Bluetooth reported charge** is the system Battery1 property;
   its side and freshness are unknown. It never fills a missing vendor field or
-  drives the bar. LE values are also excluded.
+  drives the bar. LE values are also excluded. Two system Bluetooth entries can
+  share a name while showing different percentages. Select the audio entry; the
+  plugin lists it once an audio endpoint is present.
 - Service BLE cannot yet be associated with a physical case/headset reliably.
   Its battery value, including the observed stuck 71%, is not used.
 - Playback and capture labels follow active PipeWire links, including processing
@@ -241,12 +244,13 @@ below if you want to delete diagnostics.
 
 - One long-running owner opens receiver interface 3. Other clients use the
   private UNIX socket, not a competing hidraw reader.
-- Runtime has no network calls. Repository/package installation and updates use
-  the network. Setup does not download or execute Windows firmware tools.
+- Runtime makes no Internet requests. The Bluetooth reader connects to the
+  selected device through local SDP/RFCOMM sockets. Repository/package installation
+  and updates use the Internet. Setup does not download or execute Windows tools.
 - The helper sends the documented read queries and explicit control reports.
   Call requests and valid session lighting replay can occur automatically; see
   [HANDBOOK.md](HANDBOOK.md) for cadence and [RESEARCH.md](RESEARCH.md) for opcodes.
-- Settings and presence/charging expire after 30 seconds. Battery/mode freshness
+- USB settings and presence/charging expire after 30 seconds. USB battery/mode freshness
   flags also expire after 30 seconds; the UI hides stale values. Raw daemon battery
   and mode fields remain last-reported values for diagnostic compatibility.
 - Runtime socket/lock/cache require an owner-private `$XDG_RUNTIME_DIR`. Missing,

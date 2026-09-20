@@ -1,4 +1,27 @@
-# 1.7.0 release preparation
+# 1.8.0 update preparation
+
+The accepted Marketplace baseline is 1.7.0 at `0b491be`, published September 18.
+Bluetooth development was merged into main at `3c8cc8d`; automatic retry runtime
+is `e494e05`. Version 1.8.0 packages that runtime after the marked September 20 tests.
+The metadata/documentation candidate passed aggregate tests, manifest validation,
+whitespace checks and independent release-document review. Exact-commit
+Marketplace submission is the remaining delivery step.
+
+- Release notes: [RELEASE-NOTES-1.8.0.md](RELEASE-NOTES-1.8.0.md).
+- Live and software evidence: [ACCEPTANCE-2026-09-20.md](ACCEPTANCE-2026-09-20.md).
+- Current limitations: [BACKLOG.md](BACKLOG.md).
+- Update body: [MARKETPLACE-SUBMISSION.md](MARKETPLACE-SUBMISSION.md).
+
+Submit through the existing-listing verification workflow with action
+`Verify and publish a newer upstream commit` and the full current main SHA.
+Keep existing tags unchanged. A pushed update is not Marketplace approval.
+
+The following notes are historical: 1.7.0 was subsequently released on GitHub and
+accepted by Marketplace. Their original pending statements are not current status.
+
+---
+
+# Historical 1.7.0 preparation record
 
 ## Published baseline
 
