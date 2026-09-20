@@ -21,6 +21,7 @@ Item {
   readonly property string normalizedAddress: normalizeAddress(address)
   readonly property bool eligible: active && normalizedAddress !== ""
 
+  property int consecutiveFailures: 0
   property int requestGeneration: 0
   property int capturedGeneration: -1
   property string capturedAddress: ""
@@ -82,6 +83,14 @@ Item {
       return null
     }
     return validateSnapshot(data, expectedAddress)
+  }
+
+  function retryDelay(failures) {
+    if (failures <= 1) return 30000
+    if (failures === 2) return 60000
+    if (failures === 3) return 120000
+    if (failures === 4) return 240000
+    return 300000
   }
 
   function executeLaunch() {
@@ -175,6 +184,7 @@ Item {
     var clockFailed = now < launchWallTime || wallElapsed > 15000
 
     if (exitCode === 0 && stagedResponse !== null && !stdoutInvalid && stdoutFrameCount === 1 && !clockFailed) {
+      consecutiveFailures = 0
       snapshot = stagedResponse
       stagedResponse = null
       snapshotAcceptedAt = now
@@ -184,12 +194,18 @@ Item {
       pollTimer.interval = panelOpen ? 15000 : 120000
       pollTimer.restart()
     } else {
+      consecutiveFailures = Math.min(consecutiveFailures + 1, 5)
       snapshot = null
       stagedResponse = null
       state = "unavailable"
-      pollTimer.stop()
       cooldownTimer.interval = 30000
       cooldownTimer.restart()
+      if (isEligible()) {
+        pollTimer.interval = retryDelay(consecutiveFailures)
+        pollTimer.restart()
+      } else {
+        pollTimer.stop()
+      }
     }
 
     if (pendingLaunch && isEligible()) {
@@ -246,6 +262,7 @@ Item {
 
   function handleDeactivation() {
     requestGeneration++
+    consecutiveFailures = 0
     pendingLaunch = false
     snapshot = null
     stagedResponse = null
@@ -262,6 +279,7 @@ Item {
 
   function reconcileEligibility() {
     requestGeneration++
+    consecutiveFailures = 0
     snapshot = null
     stagedResponse = null
     pollTimer.stop()
@@ -313,7 +331,7 @@ Item {
         }
       }
     } else {
-      if (pollTimer.running) {
+      if (pollTimer.running && (state === "ready" || state === "stale")) {
         pollTimer.interval = 120000
         pollTimer.restart()
       }
@@ -321,6 +339,7 @@ Item {
   }
 
   function cleanup() {
+    consecutiveFailures = 0
     requestGeneration++
     requestInFlight = false
     pendingLaunch = false

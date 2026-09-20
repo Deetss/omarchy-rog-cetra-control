@@ -179,9 +179,9 @@ Panel {
     if (bluetoothTelemetryState === "ready")
       return root.tr("bluetooth.statusReady", "Telemetry ready.")
     if (bluetoothTelemetryState === "stale")
-      return root.tr("bluetooth.statusStale", "Telemetry is stale. Use refresh to update.")
+      return root.tr("bluetooth.statusStale", "Telemetry is stale.")
     if (bluetoothTelemetryState === "unavailable")
-      return root.tr("bluetooth.statusUnavailable", "Telemetry unavailable. Use refresh to retry.")
+      return root.tr("bluetooth.statusUnavailable", "Telemetry unavailable. Retrying automatically.")
     return ""
   }
   function bluetoothAncText() {

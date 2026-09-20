@@ -51,6 +51,7 @@ const requiredFns = [
   'validateSnapshot',
   'parseTelemetryLine',
   'isEligible',
+  'retryDelay',
   'executeLaunch',
   'queuePendingLaunch',
   'drainPendingLaunch',
@@ -81,6 +82,7 @@ function createTelemetryContext(initial = {}) {
     snapshot: null,
     state: 'idle',
     helperCommand: '/test/bin/cetra-bt-read',
+    consecutiveFailures: 0,
     requestGeneration: 0,
     capturedGeneration: -1,
     capturedAddress: '',
@@ -106,7 +108,13 @@ function createTelemetryContext(initial = {}) {
     pollTimer: {
       interval: 120000,
       running: false,
-      restart() { this.running = true; },
+      restarts: 0,
+      restart() { this.running = true; this.restarts++; },
+      trigger() {
+        this.running = false;
+        const body = telemetrySource.match(/id: pollTimer[\s\S]*?onTriggered: \{([\s\S]*?)\n    \}/)[1];
+        vm.runInContext(body, ctx);
+      },
       stop() { this.running = false; }
     },
     watchdogTimer: {
@@ -381,7 +389,7 @@ addrCtx.flushCallLater();
 assert.equal(addrCtx.proc.running, true);
 assert.equal(addrCtx.capturedAddress, '11:22:33:44:55:66');
 
-// 14. Latched failure: panel open does NOT auto-retry; only explicit refresh retries
+// 14. Panel opening does not bypass the scheduled retry or manual cooldown
 const latchCtx = createTelemetryContext({ active: true, address: expectedAddr });
 latchCtx.executeLaunch();
 latchCtx.proc.running = false;
@@ -491,4 +499,160 @@ svcCtx.setBluetoothPanelOpen(dupToken, false);
 assert.equal(svcCtx.bluetoothPanelOpen, false);
 assert.equal(svcCtx.bluetoothPanelTokens.length, 0);
 
-console.log('PASS CetraTelemetry lifecycle, explicit error/exit handling, latching, single-timer rate limiting, and bounds');
+// 18. Automatic retries: repeated failures backoff (30s, 60s, 120s, 240s, cap 300s)
+const retryCtx = createTelemetryContext({ active: true, address: expectedAddr });
+assert.equal(retryCtx.consecutiveFailures, 0);
+assert.equal(retryCtx.retryDelay(0), 30000);
+assert.equal(retryCtx.retryDelay(1), 30000);
+assert.equal(retryCtx.retryDelay(2), 60000);
+assert.equal(retryCtx.retryDelay(3), 120000);
+assert.equal(retryCtx.retryDelay(4), 240000);
+assert.equal(retryCtx.retryDelay(5), 300000);
+assert.equal(retryCtx.retryDelay(6), 300000);
+
+// Failure 1: exit code 1
+retryCtx.executeLaunch();
+retryCtx.proc.running = false;
+retryCtx.handleProcessStopped(1);
+assert.equal(retryCtx.state, 'unavailable');
+assert.equal(retryCtx.snapshot, null);
+assert.equal(retryCtx.consecutiveFailures, 1);
+assert.equal(retryCtx.pollTimer.running, true);
+assert.equal(retryCtx.pollTimer.interval, 30000, 'Failure 1 backoff 30s');
+
+// Failure 2: watchdog failure
+retryCtx.pollTimer.trigger();
+assert.equal(retryCtx.state, 'loading');
+assert.equal(retryCtx.pollTimer.running, false, 'Poll timer stopped while launch in flight');
+retryCtx.proc.running = true;
+retryCtx.handleWatchdogTimeout();
+assert.equal(retryCtx.pollTimer.running, false, 'No retry while terminating');
+retryCtx.proc.running = false;
+retryCtx.handleProcessStopped(137);
+assert.equal(retryCtx.consecutiveFailures, 2);
+assert.equal(retryCtx.pollTimer.running, true);
+assert.equal(retryCtx.pollTimer.interval, 60000, 'Failure 2 backoff 60s');
+
+// Failure 3: malformed JSON
+retryCtx.pollTimer.trigger();
+retryCtx.handleLine('bad-json');
+retryCtx.proc.running = false;
+retryCtx.handleProcessStopped(0);
+assert.equal(retryCtx.consecutiveFailures, 3);
+assert.equal(retryCtx.pollTimer.running, true);
+assert.equal(retryCtx.pollTimer.interval, 120000, 'Failure 3 backoff 120s');
+
+// Failure 4: failed start
+retryCtx.pollTimer.trigger();
+retryCtx.proc.running = false;
+retryCtx.handleProcessStopped(-1);
+assert.equal(retryCtx.consecutiveFailures, 4);
+assert.equal(retryCtx.pollTimer.running, true);
+assert.equal(retryCtx.pollTimer.interval, 240000, 'Failure 4 backoff 240s');
+
+// Failure 5: capped at 300s
+retryCtx.pollTimer.trigger();
+retryCtx.proc.running = false;
+retryCtx.handleProcessStopped(1);
+assert.equal(retryCtx.consecutiveFailures, 5);
+assert.equal(retryCtx.pollTimer.running, true);
+assert.equal(retryCtx.pollTimer.interval, 300000, 'Failure 5 backoff capped at 300s');
+
+// Failure 6: remains capped at 300s
+retryCtx.pollTimer.trigger();
+retryCtx.proc.running = false;
+retryCtx.handleProcessStopped(1);
+assert.equal(retryCtx.consecutiveFailures, 5);
+assert.equal(retryCtx.pollTimer.running, true);
+assert.equal(retryCtx.pollTimer.interval, 300000, 'Failure 6 backoff capped at 300s');
+
+// 19. Success resets consecutive failures and restores normal poll schedule
+retryCtx.pollTimer.trigger();
+retryCtx.handleLine(JSON.stringify(validRaw));
+retryCtx.proc.running = false;
+retryCtx.handleProcessStopped(0);
+assert.equal(retryCtx.state, 'ready');
+assert.equal(retryCtx.consecutiveFailures, 0, 'Consecutive failures reset to 0 on success');
+assert.notEqual(retryCtx.snapshot, null);
+assert.equal(retryCtx.pollTimer.running, true);
+assert.equal(retryCtx.pollTimer.interval, 120000, 'Poll timer restored to normal background poll');
+
+// Next failure restarts at 30s
+retryCtx.pollTimer.trigger();
+retryCtx.proc.running = false;
+retryCtx.handleProcessStopped(1);
+assert.equal(retryCtx.consecutiveFailures, 1);
+assert.equal(retryCtx.pollTimer.interval, 30000, 'Backoff restarts at 30s after success');
+
+// 20. Manual refresh cancels pending automatic retry after 30s cooldown
+const manualCtx = createTelemetryContext({ active: true, address: expectedAddr });
+manualCtx.executeLaunch();
+manualCtx.proc.running = false;
+manualCtx.handleProcessStopped(1);
+assert.equal(manualCtx.consecutiveFailures, 1);
+assert.equal(manualCtx.pollTimer.running, true);
+assert.equal(manualCtx.pollTimer.interval, 30000);
+assert.equal(manualCtx.cooldownTimer.running, true);
+assert.equal(manualCtx.canRefresh, false);
+
+manualCtx.cooldownTimer.running = false;
+assert.equal(manualCtx.canRefresh, true);
+assert.equal(manualCtx.pollTimer.running, true);
+
+assert.equal(manualCtx.refresh(), true);
+assert.equal(manualCtx.pollTimer.running, false, 'Manual refresh canceled pending automatic retry');
+assert.equal(manualCtx.proc.running, true);
+assert.equal(manualCtx.state, 'loading');
+
+// 21. Panel toggles during failed state do not accelerate or postpone retry deadline
+const panelCtx = createTelemetryContext({ active: true, address: expectedAddr });
+panelCtx.executeLaunch();
+panelCtx.proc.running = false;
+panelCtx.handleProcessStopped(1);
+assert.equal(panelCtx.state, 'unavailable');
+assert.equal(panelCtx.pollTimer.running, true);
+assert.equal(panelCtx.pollTimer.interval, 30000);
+const scheduledRestarts = panelCtx.pollTimer.restarts;
+
+panelCtx.panelOpen = true;
+panelCtx.handlePanelOpenChanged();
+assert.equal(panelCtx.pollTimer.running, true);
+assert.equal(panelCtx.pollTimer.interval, 30000, 'Panel open does not alter retry interval');
+assert.equal(panelCtx.proc.running, false, 'Panel open does not launch helper during unavailable');
+
+panelCtx.panelOpen = false;
+panelCtx.handlePanelOpenChanged();
+assert.equal(panelCtx.pollTimer.running, true);
+assert.equal(panelCtx.pollTimer.interval, 30000, 'Panel close does not alter retry interval');
+assert.equal(panelCtx.proc.running, false);
+assert.equal(panelCtx.pollTimer.restarts, scheduledRestarts, 'Panel toggles do not restart retry timer');
+
+// 22. Eligibility transitions reset schedule and cancel obsolete retries
+const eligCtx = createTelemetryContext({ active: true, address: expectedAddr });
+eligCtx.executeLaunch();
+eligCtx.proc.running = false;
+eligCtx.handleProcessStopped(1);
+assert.equal(eligCtx.consecutiveFailures, 1);
+assert.equal(eligCtx.pollTimer.running, true);
+
+eligCtx.active = false;
+eligCtx.reconcileEligibility();
+assert.equal(eligCtx.consecutiveFailures, 0, 'Consecutive failures reset on deactivation');
+assert.equal(eligCtx.pollTimer.running, false, 'Pending retry stopped on deactivation');
+assert.equal(eligCtx.state, 'idle');
+
+// 23. No helper overlap during automatic retry trigger and watchdog termination
+const overlapCtx = createTelemetryContext({ active: true, address: expectedAddr });
+overlapCtx.executeLaunch();
+overlapCtx.proc.running = false;
+overlapCtx.handleProcessStopped(1);
+assert.equal(overlapCtx.pollTimer.running, true);
+
+overlapCtx.pollTimer.trigger();
+assert.equal(overlapCtx.requestInFlight, true);
+assert.equal(overlapCtx.busy, true);
+assert.equal(overlapCtx.pollTimer.running, false);
+overlapCtx.pollTimer.trigger();
+assert.equal(overlapCtx.requestInFlight, true);
+
+console.log('PASS CetraTelemetry lifecycle, backoff retries, explicit error/exit handling, single-timer rate limiting, and bounds');

@@ -1,6 +1,9 @@
 # Bluetooth vendor telemetry
 
-Date:2026-09-16. Status: implemented and delivered locally; verified on the installed panel. This extends SDD-BLUETOOTH.md for vendor reads; publication is separate.
+Updated: 2026-09-20. Status: Bluetooth development merged into local main after
+Marketplace acceptance of the USB release. Automatic retry follow-up is under
+verification; live battery progression and marked ANC acceptance remain open.
+This extends SDD-BLUETOOTH.md for vendor reads; publication is separate.
 
 ## Intent and invariants
 
@@ -29,8 +32,12 @@ source. No additional Python runtime or package is required.
   JSON and rejects late generations/addresses/USB transitions.15s watchdog,
   bounded shutdown, no overlap while an earlier child terminates.
 - Automatic read on eligible connection;15s cadence with a panel open,120s
-  closed after success. Failure stops automatic retries. Manual refresh is
-  rate-limited, including30s cooldown after failure; reconnect permits a new try.
+  closed after success. Failed completed transactions retry after30/60/120/240/300s,
+  capped at300s. No retry starts while the previous child terminates. Success
+  resets the delay; eligibility/address/generation changes cancel and reset it.
+  Manual refresh is rate-limited, including30s cooldown after failure; an accepted
+  refresh replaces the scheduled retry. Panel open/close does not change a failed
+  retry deadline. Reconnect permits a new initial attempt.
 - Report expires after180s or clock rollback; delayed post-suspend completion
   is rejected. No claim of hardware measurement freshness or power savings.
 - USB has priority when existing service.connected is true. Otherwise show a
@@ -50,7 +57,8 @@ Run the repository aggregate tests, manifest validation and diff checks. Inspect
 the installed panel and a bounded actual helper read, confirm one USB owner and
 valid cache. Preserve unresolved case freshness, native mute, cause of earlier
 RFCOMM failure, and unperformed suspend/multimonitor acceptance. Runtime delivery
-uses the existing unlocked-shell guard. No commit, release or publication here.
+uses the existing unlocked-shell guard. The September20 request authorizes main
+integration and update preparation; the earlier acceptance below is historical.
 
 ## Acceptance — 2026-09-16
 
@@ -90,3 +98,23 @@ Device selection remains accessible without an existing selected identity.
 The hover tooltip shows only device, connection status and last-reported charge.
 This is presentation-only; transport cadence, nullable data and USB command gates
 are unchanged. No publication is included in the commit request.
+
+## Automatic retry follow-up — 2026-09-20
+
+- Merged Bluetooth development into main at `3c8cc8d`, preserving the accepted
+  DEVELOPMENT.md renames and the saved Bluetooth checkpoint branch.
+- JS tests execute production functions and the production timer handler; real
+  Qt fixtures cover repeated failures, backoff cap, manual refresh, cancellation,
+  success reset and overlap prevention. The aggregate suite and manifest/diff
+  checks passed. Independent Gemini source review found no concrete defect;
+  its verdict does not establish live timing or hardware correctness.
+- USB supplied97/98/89 and Ambient at the unmarked baseline; a standalone vendor
+  read failed in discovery while BlueZ reported the audio device connected.
+  Neither this read nor source inspection establishes the cause of the earlier
+  frozen100%/Battery1 zero/ANC complaints. Marked live acceptance remains open.
+- Status copy now describes automatic retry. Other locales retain key parity;
+  fluent review of translations remains an existing limitation.
+- Guarded setup succeeded and the existing shell was restarted once. The
+  installed panel showed USB94/95/89 and Ambient; one cetra-watch process owned
+  USB, its status cache was valid JSON and logging continued. No Cetra QML errors
+  were found. Bluetooth live recovery and marked ANC acceptance are still pending.

@@ -513,7 +513,125 @@ int main(int argc, char **argv) {
     assert(telemetry->property("state").toString() == "stale");
   }
 
-  // 15. Check no new helper after component destroy
+  // 14. Repeated failures & backoff cap: 30s, 60s, 120s, 240s, capped 300s
+  QMetaObject::invokeMethod(btCooldown, "stop");
+  telemetry->setProperty("deviceGeneration", telemetry->property("deviceGeneration").toInt() + 1);
+  QCoreApplication::processEvents();
+  // Failure 1
+  proc->finish(1);
+  QCoreApplication::processEvents();
+  assert(telemetry->property("state").toString() == "unavailable");
+  assert(snapshotValue(telemetry.get()).isNull());
+  assert(telemetry->property("consecutiveFailures").toInt() == 1);
+  assert(btPoll->property("interval").toInt() == 30000);
+  assert(btPoll->property("running").toBool() == true);
+
+  // Failure 2
+  QMetaObject::invokeMethod(btPoll, "triggered");
+  QCoreApplication::processEvents();
+  assert(proc->isRunning() == true);
+  assert(btPoll->property("running").toBool() == false);
+  proc->finish(1);
+  QCoreApplication::processEvents();
+  assert(telemetry->property("consecutiveFailures").toInt() == 2);
+  assert(btPoll->property("interval").toInt() == 60000);
+  assert(btPoll->property("running").toBool() == true);
+
+  // Failure 3
+  QMetaObject::invokeMethod(btPoll, "triggered");
+  QCoreApplication::processEvents();
+  proc->finish(1);
+  QCoreApplication::processEvents();
+  assert(telemetry->property("consecutiveFailures").toInt() == 3);
+  assert(btPoll->property("interval").toInt() == 120000);
+
+  // Failure 4
+  QMetaObject::invokeMethod(btPoll, "triggered");
+  QCoreApplication::processEvents();
+  proc->finish(1);
+  QCoreApplication::processEvents();
+  assert(telemetry->property("consecutiveFailures").toInt() == 4);
+  assert(btPoll->property("interval").toInt() == 240000);
+
+  // Failure 5
+  QMetaObject::invokeMethod(btPoll, "triggered");
+  QCoreApplication::processEvents();
+  proc->finish(1);
+  QCoreApplication::processEvents();
+  assert(telemetry->property("consecutiveFailures").toInt() == 5);
+  assert(btPoll->property("interval").toInt() == 300000);
+
+  // Failure 6 capped at 300s
+  QMetaObject::invokeMethod(btPoll, "triggered");
+  QCoreApplication::processEvents();
+  proc->finish(1);
+  QCoreApplication::processEvents();
+  assert(telemetry->property("consecutiveFailures").toInt() == 5);
+  assert(btPoll->property("interval").toInt() == 300000);
+  assert(btPoll->property("running").toBool() == true);
+
+  // 15. Panel opening/closing during failed state does not shift deadline or launch
+  int launchesBeforeToggles = proc->launchCount();
+  telemetry->setProperty("panelOpen", true);
+  QCoreApplication::processEvents();
+  assert(btPoll->property("interval").toInt() == 300000);
+  assert(btPoll->property("running").toBool() == true);
+  assert(proc->launchCount() == launchesBeforeToggles);
+
+  telemetry->setProperty("panelOpen", false);
+  QCoreApplication::processEvents();
+  assert(btPoll->property("interval").toInt() == 300000);
+  assert(btPoll->property("running").toBool() == true);
+  assert(proc->launchCount() == launchesBeforeToggles);
+
+  // 16. Manual retry allowed after 30s cooldown and cancels pending automatic retry
+  assert(telemetry->property("canRefresh").toBool() == false);
+  QMetaObject::invokeMethod(btCooldown, "stop");
+  assert(telemetry->property("canRefresh").toBool() == true);
+  assert(btPoll->property("running").toBool() == true);
+
+  QMetaObject::invokeMethod(telemetry.get(), "refresh");
+  QCoreApplication::processEvents();
+  assert(proc->isRunning() == true);
+  assert(btPoll->property("running").toBool() == false); // pending retry canceled
+
+  // 17. Success resets consecutive failures to 0 and restores normal poll schedule
+  proc->finish(0, QString(goodJson).replace("AA:BB:CC:DD:EE:FF", "77:88:99:AA:BB:CC"));
+  QCoreApplication::processEvents();
+  assert(telemetry->property("state").toString() == "ready");
+  assert(telemetry->property("consecutiveFailures").toInt() == 0);
+  assert(btPoll->property("interval").toInt() == 120000);
+  assert(btPoll->property("running").toBool() == true);
+
+  // 18. Eligibility transition cancels retry schedule and resets failures
+  QMetaObject::invokeMethod(btCooldown, "stop");
+  QMetaObject::invokeMethod(telemetry.get(), "refresh");
+  QCoreApplication::processEvents();
+  proc->finish(1);
+  QCoreApplication::processEvents();
+  assert(telemetry->property("consecutiveFailures").toInt() == 1);
+  assert(btPoll->property("interval").toInt() == 30000);
+  assert(btPoll->property("running").toBool() == true);
+
+  telemetry->setProperty("active", false); // USB plug-in priority transition
+  QCoreApplication::processEvents();
+  assert(telemetry->property("consecutiveFailures").toInt() == 0);
+  assert(btPoll->property("running").toBool() == false);
+  assert(telemetry->property("state").toString() == "idle");
+
+  // 19. No helper overlap: triggered poll during running process does not launch second helper
+  telemetry->setProperty("active", true);
+  QCoreApplication::processEvents();
+  assert(proc->isRunning() == true);
+  int launchesBeforeSpurious = proc->launchCount();
+  QMetaObject::invokeMethod(btPoll, "triggered");
+  QCoreApplication::processEvents();
+  assert(proc->launchCount() == launchesBeforeSpurious);
+  proc->finish(1);
+  QCoreApplication::processEvents();
+
+
+  // Check no new helper after component destroy
   int instancesBeforeDestroy = MockProcess::totalCreated();
   telemetry.reset();
   QCoreApplication::processEvents();

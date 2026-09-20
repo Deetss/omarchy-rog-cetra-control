@@ -1,6 +1,20 @@
 # Changelog
 
-## 1.7.0 — release candidate
+## Unreleased — Bluetooth update
+
+- Keep the panel available for the explicitly selected Bluetooth audio device
+  when USB is absent. Observe actual playback/capture routes and profile support.
+- Read per-earbud/case battery, ANC and reported charging flags through the
+  verified read-only Asus_APP channel. Preserve unknown fields and USB priority.
+- Refresh automatically every 15 seconds with the panel open or two minutes
+  closed. Retry failures after 30/60/120/240/300 seconds without overlapping
+  readers; retain manual refresh after a cooldown and expire stale reports.
+- Keep connection details collapsed and shorten the hover tooltip on both
+  transports. Bluetooth ANC remains read-only; native mute stays unknown.
+- Live battery progression, marked ANC updates and vendor-channel recovery are
+  still pending. This development update has not been submitted to Marketplace.
+
+## 1.7.0 — Marketplace accepted 2026-09-18
 
 - Bound shell.json acquisition before QML buffering; keep FileView watch-only.
 - Use monotonic Pulse timers and bound stalled mirror EOF drain.

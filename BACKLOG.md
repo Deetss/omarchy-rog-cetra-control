@@ -32,7 +32,8 @@ remain visible; this decision is not a claim that omitted tests passed.
 | P0.5 Truthful publication | Version 1.7.0, release notes and accepted limitations prepared; historical preview labeled | Delivery gate: validated source archive, exact publication commit and separately authorized publication; author confirms asset submission rights |
 
 P0 runtime fixes and accepted limits are distinct from the publication gate.
-Do not claim the candidate is already published or independently verified.
+The table above records the earlier 1.7.0 preparation. Its Marketplace publication
+is now confirmed; the Bluetooth update has separate open acceptance below.
 
 ## Bluetooth development stage — 2026-09-16
 
@@ -109,8 +110,9 @@ adaptations are in SDD-BLUETOOTH.md; this is not a publication/readiness claim.
   root or HID access. Battery domains, ANC, reported charging bits, fragment
   reassembly, EOF, exact request bytes and reader exclusion have offline coverage.
 - One shared `CetraTelemetry` child handles serialization, late generations,
-  15-second foreground/120-second background cadence, a failure latch with
-  manual retry, and 180-second report expiry. USB retains control priority.
+  15-second foreground/120-second background cadence, automatic failure retries
+  after 30/60/120/240/300 seconds, manual refresh after a 30-second cooldown,
+  and 180-second report expiry. USB retains control priority.
 - Columns/bar use a complete USB or vendor Bluetooth source. Standard Battery1
   and unassociated LE charge never fill a missing vendor percentage. Bluetooth
   ANC is read-only; native mute remains unknown.

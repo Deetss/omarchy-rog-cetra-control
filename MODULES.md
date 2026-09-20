@@ -89,7 +89,7 @@ same change. File length is a navigation aid, not a reason to split cohesive cod
 - `cetra-bt-read.c`: SDP/RFCOMM one-shot reader, bounded framing and JSON, per-user
   exclusion; linked by `setup` with libbluetooth. No access to the USB receiver.
 - `CetraTelemetry.qml`: shared request lifecycle, generation invalidation,
-  cadence, failure latch, cooldown and snapshot expiry.
+  cadence, bounded retry backoff, cooldown and snapshot expiry.
 - `CetraService.qml`: owns the telemetry child and open-view membership.
 - `CetraViewModel.qml`: whole-source battery projection and view registration;
   `ConnectionSection.qml` owns Bluetooth refresh/status and read-only ANC.

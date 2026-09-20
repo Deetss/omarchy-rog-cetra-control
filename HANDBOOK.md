@@ -120,8 +120,11 @@ One request owns the process until exit. Generation/address changes clear the
 snapshot and cancel the old request before the next launch. The service validates
 exactly one JSON report and accepts it only on successful exit within 15 seconds.
 Success schedules 15-second open-panel or 120-second background reads. Failure
-clears the snapshot and latches automatic polling; only explicit refresh after
-30 seconds or a new eligible connection retries. Values expire after 180 seconds
+clears the snapshot and retries after 30/60/120/240/300 seconds, capped at five
+minutes between attempts. Only a completed child schedules the retry. Success
+resets the delay; address/generation/USB changes cancel it. Explicit refresh is
+available after 30 seconds. Panel visibility does not move a failed retry deadline.
+Values expire after 180 seconds
 or clock rollback. These host timestamps do not prove hardware sample freshness.
 
 The view preserves USB-only `connected` and command gates. Battery columns choose

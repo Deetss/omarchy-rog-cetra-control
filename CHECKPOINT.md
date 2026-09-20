@@ -8,6 +8,19 @@ The earlier reference to issue6942 was incorrect; it belongs to another plugin.
 The user authorized merging Bluetooth development into main and preparing an
 update. Preserve the accepted documentation rename: no AGENTS.md files may return
 to the distributable tree. The saved Bluetooth branch remains a recovery point.
+Local main merge: `3c8cc8d`. The subsequent automatic retry follow-up replaces
+manual-only recovery with30/60/120/240/300-second backoff and preserves the shared
+single-reader lifecycle. Full aggregate tests, manifest validation, diff checks
+and an independent Gemini review passed for the retry implementation. The real
+Qt fixture covers production QML with controlled child exits; it is not live
+Bluetooth acceptance.
+
+At this session's unmarked baseline, USB reported97/98/89 and Ambient; the
+standalone Bluetooth reader failed during service discovery. BlueZ still showed
+the selected audio device connected. No marked voice-prompt response was received
+at this checkpoint. Battery progression, gesture-to-panel ANC and channel recovery
+remain open. The update is not submitted; version remains1.7.0 pending acceptance.
+
 The sections below record the September16 checkpoint; they do not establish
 acceptance of the new update.
 

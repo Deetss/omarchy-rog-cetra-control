@@ -78,7 +78,7 @@ it only saves an address to identify future observations. It does not connect,
 pair, scan, or change audio profiles. No name-based automatic selection is used.
 
 - The panel stays available after USB removal while the selected audio device
-  remains connected. ANC, lighting, voice settings and the signal meter require
+  remains connected. ANC controls, lighting, voice settings and the signal meter require
   USB. Microphone mute remains unknown on both transports.
 - With USB earbuds available, their readings have priority. Otherwise the three
   battery columns and bar percentage use one complete vendor Bluetooth report.
@@ -88,8 +88,10 @@ pair, scan, or change audio profiles. No name-based automatic selection is used.
   using three fixed getters; it does not send Bluetooth control commands.
 - A successful read schedules the next one after 15 seconds with a panel open,
   or two minutes in the background. A failed transaction clears the report and
-  stops automatic retries. **Refresh** permits a retry after a 30-second cooldown;
-  a new connection permits another initial attempt. Reports expire after three
+  retries automatically after 30, 60, 120, 240, then 300 seconds between attempts.
+  Success resets this delay. **Refresh** allows an earlier attempt after a
+  30-second cooldown; opening the panel does not reset the retry timer. A new
+  connection permits another initial attempt. Reports expire after three
   minutes. Case charge/charging flags are last reported, not proof of fresh
   physical measurements. This cadence has not been measured for battery impact.
 - The separate **Bluetooth reported charge** is the system Battery1 property;
