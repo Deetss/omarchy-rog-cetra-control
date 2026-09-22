@@ -10,16 +10,18 @@ do not load the entire repository by default. Protocol evidence is in RESEARCH.m
 | Bar placement, popup, keyboard traversal | `Cetra.qml` | Installed Omarchy Panel/KeyboardPanel; `tests/service-lifecycle/keyboard.js` |
 | View-facing status labels and actions | `CetraViewModel.qml` | All sections; `tests/i18n/run.js`, `tests/lighting-color/run.js` |
 | Bluetooth identity and Battery1 | `CetraBluetooth.qml` | Service; `tests/bluetooth.js`, `tests/bluetooth/run.py` |
-| Transport status and device selection | `ConnectionSection.qml` | View model → service; Bluetooth and i18n tests |
+| Bluetooth sound status | `BluetoothSoundSection.qml` | View model; read-only ANC, telemetry status and refresh |
+| Device connection details and selection | `ConnectionSection.qml` | View model → service; Bluetooth and i18n tests |
 | Battery columns | `BatterySection.qml` | View model; device-report and live rendering checks |
 | ANC modes, manual levels, Adaptive | `NoiseSection.qml` | View model → service; `tests/service-lifecycle/run.js` |
 | Language picker | `LanguageSection.qml` | View model → preferences; `tests/i18n/run.js` |
-| Microphone information | `MicrophoneSection.qml` | Unknown mute only; microphone-state contract tests |
+| Microphone signal information | `MicrophoneSection.qml` | Capture/level state; native mute remains unknown; meter/state tests |
 | Audio topology and endpoint/call classification | `AudioTopology.qml` | Service, CallDetector, MicrophoneMeter; `tests/audio-topology.js` |
-| Optional input peak meter | `MicrophoneMeter.qml` | Service Loader; topology admission; `tests/microphone-meter.js` |
-| Bar signal display | `MicrophoneLevel.qml` | Nullable level; no mute inference; `tests/microphone-meter.js` |
+| Optional input peak meter | `MicrophoneMeter.qml` | Service Loader; topology admission; `tests/microphone-meter.js`, `tests/microphone-meter/run.py` |
+| Bar charge and signal display | `CetraBarIndicator.qml` | View model → Cetra bar; actual Qt pixel/geometry checks in `tests/bar-indicator/run.py` |
+| Legacy standalone signal display | `MicrophoneLevel.qml` | Nullable level compatibility; `tests/microphone-meter.js` |
 | Lighting effects | `LightingSection.qml` | Service's last-sent effect; lighting-color tests |
-| RGB inputs, Apply, auto-theme opt-in | `LightingPalette.qml` | View model → service; lighting-color and Qt layout tests |
+| Color swatch, Apply, auto-theme opt-in | `LightingPalette.qml` | View model → service; lighting-color and Qt layout tests |
 | Headset voice language | `VoiceSection.qml` | Verified protocol enums; service-lifecycle tests |
 | Wrapping button / nullable toggle | `ControlButton.qml`, `SettingToggle.qml` | Explicit `panelRoot` keyboard/theme dependency; Qt and live focus checks |
 | SVG recoloring | `CetraIcon.qml` | `assets/`; symbolic white masks, runtime theme color |
@@ -92,9 +94,17 @@ same change. File length is a navigation aid, not a reason to split cohesive cod
   cadence, bounded retry backoff, cooldown and snapshot expiry.
 - `CetraService.qml`: owns the telemetry child and open-view membership.
 - `CetraViewModel.qml`: whole-source battery projection and view registration;
-  `ConnectionSection.qml` owns Bluetooth refresh/status and read-only ANC.
+  `BluetoothSoundSection.qml` owns Bluetooth refresh/status and read-only ANC;
+  `ConnectionSection.qml` owns connection details and identity selection.
 - `tests/bluetooth-telemetry-native.py`: offline native protocol/CLI/lock checks.
 - `tests/bluetooth-telemetry.js`: production QML function state-machine checks.
 - `tests/bluetooth-telemetry/run.py`: complete QML component with controlled Qt
   process adapter; no hardware or second Quickshell session.
 - `SDD-BLUETOOTH-TELEMETRY.md`: approved behavior and verification contract.
+
+The Device Color sub-tab owns LightingSection/LightingPalette. CetraViewModel
+owns its ephemeral RGB draft; CetraPreferences.updateLightingColor performs the
+validated, single host settings update. Choosing a color is separate from HID Apply.
+
+`LightingColorField.qml` owns the native hue/saturation wheel and RGB/HEX draft conversion.
+LightingPalette composes the brightness and optional exact-input controls. It updates only the ephemeral RGB draft, never preferences or hardware.

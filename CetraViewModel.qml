@@ -37,12 +37,16 @@ Panel {
   readonly property color dim: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.85)
   readonly property color rule: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.12)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
-  property bool settingsExpanded: false
+  property string panelPage: "sound"
+  property string devicePage: "settings"
+  property var lightingDraftRgb: [255, 255, 255]
+  property bool lightingDraftError: false
+  readonly property bool settingsExpanded: panelPage === "device"
   property bool lightingColorExpanded: false
   property bool languageExpanded: false
   property string lightingFeedback: ""
-  readonly property bool showPercentage: preference("showPercentage", true) === true
   readonly property bool showMicLevel: preference("showMicLevel", false) === true
+  readonly property string microphoneCaptureState: service && service.microphoneCaptureState !== undefined ? service.microphoneCaptureState : "unknown"
   readonly property var microphoneLevel: service && service.microphoneLevel !== undefined ? service.microphoneLevel : null
   readonly property bool hideWhenReceiverMissing: preference("hideWhenReceiverMissing", true) === true
   readonly property bool hideWhenDisconnected: preference("hideWhenDisconnected", hideWhenReceiverMissing) === true
@@ -159,7 +163,10 @@ Panel {
       _registeredService = service
     }
   }
-  onOpenedChanged: _updateBluetoothPanelOpen()
+  onOpenedChanged: {
+    if (!opened) cancelLightingEdit()
+    _updateBluetoothPanelOpen()
+  }
   onServiceChanged: _updateBluetoothPanelOpen()
   Component.onCompleted: _updateBluetoothPanelOpen()
   Component.onDestruction: {
@@ -294,6 +301,44 @@ Panel {
   function applyLightingColor() {
     return setLighting(root.colorApplyEffect)
   }
+  function beginLightingEdit() {
+    if (!opened || !connected || panelPage !== "device" || devicePage !== "color") return
+    var color = selectedLightingColor
+    lightingDraftRgb = ["r", "g", "b"].map(function (channel) {
+      var value = color ? color[channel] : 1
+      return typeof value === "number" && Number.isFinite(value) ? Math.round(Math.max(0, Math.min(1, value)) * 255) : 255
+    })
+    lightingDraftError = false
+    lightingFeedback = ""
+    lightingColorExpanded = true
+  }
+  function setLightingDraftChannel(index, value) {
+    if (!lightingColorExpanded || !connected || [0, 1, 2].indexOf(index) < 0
+        || typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 255 || Math.floor(value) !== value) return
+    var next = lightingDraftRgb.slice()
+    next[index] = value
+    lightingDraftRgb = next
+    lightingDraftError = false
+    lightingFeedback = ""
+  }
+  function cancelLightingEdit() {
+    lightingColorExpanded = false
+    lightingDraftError = false
+  }
+  function commitLightingEdit() {
+    if (!opened || !connected || panelPage !== "device" || devicePage !== "color" || !lightingColorExpanded) return false
+    var saved = service && typeof service.updateLightingColor === "function"
+      && service.updateLightingColor(lightingDraftRgb, settings)
+    lightingDraftError = !saved
+    if (!saved) return false
+    // Use the accepted draft directly: host settings bindings may settle later.
+    var sent = service.setLighting(colorApplyEffect, {
+      r: lightingDraftRgb[0] / 255, g: lightingDraftRgb[1] / 255, b: lightingDraftRgb[2] / 255
+    })
+    lightingFeedback = sent ? "sent" : "rejected"
+    if (sent) lightingColorExpanded = false
+    return !!sent
+  }
   function setLightingSetting(name, value) {
     if (!bar || !bar.shell || typeof bar.shell.updateEntryInline !== "function") return false
     if (name === "useThemeColor") {
@@ -320,10 +365,33 @@ Panel {
     if (typeof enabled !== "boolean" || !bar || !bar.shell || typeof bar.shell.updateEntryInline !== "function") return false
     return persistSetting("showMicLevel", enabled)
   }
-  function microphoneLevelText() {
-    return microphoneLevel === null ? root.tr("microphone.levelUnavailable", "Mic level: no capture data")
-      : root.tr("microphone.levelValue", "Mic signal: {value}% (not mute state)", { value: Math.round(microphoneLevel * 100) })
+  function microphoneHelpText() {
+    var info = root.tr("microphone.usbOnly", "Signal metering requires USB. Follow the headset voice prompt for native mute.")
+      + "\n" + root.tr("microphone.unknown", "Microphone mute: unknown")
+    if (!connected) return info
+    return info + "\n" + (root.callContextActive
+      ? root.tr("microphone.callGesture", "Call mode requested. Follow the headset voice prompt; tap behavior is not confirmed.")
+      : root.tr("microphone.mediaGesture", "Call mode not requested. A tap may control playback."))
   }
+  function microphoneSignalState() {
+    if (!connected) return "usb-only"
+    if (!showMicLevel) return "disabled"
+    if (microphoneCaptureState === "inactive") return "idle"
+    if (microphoneCaptureState !== "active") return "unavailable"
+    if (typeof microphoneLevel !== "number" || !Number.isFinite(microphoneLevel) || microphoneLevel < 0) return "waiting"
+    return microphoneLevel === 0 ? "silent" : "signal"
+  }
+  function microphoneLevelText() {
+    var state = microphoneSignalState()
+    if (state === "usb-only") return root.tr("microphone.levelUsb", "Signal level requires USB")
+    if (state === "disabled") return root.tr("microphone.levelDisabled", "Signal indicator disabled")
+    if (state === "idle") return root.tr("microphone.levelIdle", "No active recording")
+    if (state === "unavailable") return root.tr("microphone.levelUnavailable", "Mic level: no capture data")
+    if (state === "waiting") return root.tr("microphone.levelWaiting", "Waiting for signal data")
+    if (state === "silent") return root.tr("microphone.levelSilent", "No signal · 0%")
+    return root.tr("microphone.levelSignal", "Signal: {value}%", { value: Math.round(Math.min(1, microphoneLevel) * 100) })
+  }
+
   function persistSetting(name, value) {
     if (service && typeof service.updateSetting === "function") return service.updateSetting(name, value, settings)
     var entry = Object.assign({}, settings || {}, { id: root.moduleName })

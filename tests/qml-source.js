@@ -3,8 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const repo = path.resolve(__dirname, '..');
 const read = name => fs.readFileSync(path.join(repo, name), 'utf8');
-const widgetFiles = ['CetraViewModel.qml', 'Cetra.qml', 'ControlButton.qml', 'SettingToggle.qml',
-  'LanguageSection.qml', 'BatterySection.qml', 'ConnectionSection.qml', 'NoiseSection.qml', 'MicrophoneSection.qml', 'MicrophoneLevel.qml', 'LightingSection.qml', 'LightingPalette.qml', 'VoiceSection.qml'];
+const widgetFiles = ['CetraViewModel.qml', 'Cetra.qml', 'CetraBarIndicator.qml', 'ControlButton.qml', 'SettingToggle.qml',
+  'LanguageSection.qml', 'BatterySection.qml', 'ConnectionSection.qml', 'BluetoothSoundSection.qml', 'NoiseSection.qml', 'MicrophoneSection.qml', 'MicrophoneLevel.qml', 'LightingSection.qml', 'LightingPalette.qml', 'LightingColorField.qml', 'VoiceSection.qml'];
 const serviceFiles = ['CetraPreferences.qml', 'CetraService.qml', 'CallDetector.qml', 'AudioTopology.qml', 'CetraBluetooth.qml', 'CetraTelemetry.qml'];
 module.exports = { read, widgetFiles, serviceFiles,
   widget: widgetFiles.map(read).join('\n'), service: serviceFiles.map(read).join('\n') };

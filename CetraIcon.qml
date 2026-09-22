@@ -18,9 +18,11 @@ Item {
     width: Math.max(0, Math.min(root.width, root.height, root.iconSize))
     height: width
     source: Qt.resolvedUrl("assets/" + root.name + "-symbolic.svg")
-    sourceSize.width: Math.round(width * Screen.devicePixelRatio)
-    sourceSize.height: Math.round(height * Screen.devicePixelRatio)
+    sourceSize.width: Math.ceil(width * Screen.devicePixelRatio * 4)
+    sourceSize.height: Math.ceil(height * Screen.devicePixelRatio * 4)
     fillMode: Image.PreserveAspectFit
+    smooth: true
+    mipmap: true
     visible: false
     layer.enabled: true
   }

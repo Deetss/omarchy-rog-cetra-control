@@ -1,4 +1,31 @@
-# Current checkpoint — 1.8.0 update preparation
+# Current checkpoint — 2026-09-23 UI development
+
+User approved the OpenDesign Color flow and requested implementation, commit and
+push to this repository's origin/main. No Marketplace update, tag or release is
+authorized by that request. Manifest remains 1.8.0; see Unreleased in CHANGELOG.
+
+The accumulated bar/panel/microphone changes and Color editor are integrated.
+One Apply saves the RGB draft and sends it through the USB owner once; failed
+save sends nothing, rejected dispatch stays open for retry. Movement/Cancel send
+nothing. The wheel has a separate swatch and HEX label. Effect/theme controls
+hide during editing. Bluetooth lighting stays unavailable; telemetry is read-only.
+
+The full validation result and live activation evidence are appended to
+SDD-COLOR-EDITOR.md. Independent Gemini reviewed the prior UI/meter changes and
+the one-step palette. The numeric bar level now additionally requires active
+USB capture; the reported missing ControlButton import was rejected because it
+is a same-directory local QML type, not a missing host export.
+
+After activation the user reported testing the result successfully ("Я потестил
+все круто"). Record this as user acceptance of the current UI; individual hardware
+steps were not itemized. Broader battery freshness, Bluetooth microphone and
+suspend/resume limits remain unchanged. No more changes are planned today.
+
+Unrelated Marketplace draft edits and historical design explorations remain local.
+
+---
+
+# Earlier checkpoint — 1.8.0 update preparation
 
 September 20 marked Bluetooth trial completed on runtime `e494e05`: all three
 voice-prompt modes matched the panel; earbud reports changed; closed-case data

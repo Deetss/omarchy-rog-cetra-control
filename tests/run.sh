@@ -10,6 +10,8 @@ export TMPDIR="$build_dir"
 python3 -m json.tool "$plugin_dir/manifest.json" >/dev/null
 node "$plugin_dir/tests/module-contract.js"
 node "$plugin_dir/tests/microphone-meter.js"
+python3 -B "$plugin_dir/tests/microphone-meter/run.py"
+python3 -B "$plugin_dir/tests/bar-indicator/run.py"
 node "$plugin_dir/tests/audio-topology.js"
 node "$plugin_dir/tests/bluetooth.js"
 node "$plugin_dir/tests/bluetooth-telemetry.js"
@@ -63,7 +65,7 @@ if grep -Eq 'micLive|mic_live|mic_state|cetra-mic-off|"In case"|Earbuds are in t
   printf '%s\n' "UI exposes inferred mute or unsupported in-case state" >&2
   exit 1
 fi
-grep -Eq 'root\.tr\("microphone\.unknown", "[^"]*[Uu]nknown"\)' "$plugin_dir/MicrophoneSection.qml"
+grep -Eq 'root\.tr\("microphone\.unknown", "[^"]*[Uu]nknown"\)' "$plugin_dir/CetraViewModel.qml"
 grep -Fq 'text: root.levelText(modelData.value)' "$plugin_dir/BatterySection.qml"
 python3 -B "$plugin_dir/tests/call-context/run.py"
 node "$plugin_dir/tests/lighting-color/run.js"

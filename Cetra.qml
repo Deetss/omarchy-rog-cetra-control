@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls as Controls
 import qs.Commons
 import qs.Ui
 
@@ -11,10 +12,6 @@ CetraViewModel {
   property alias keyTarget: keyCatcher
   property alias lightingPaletteToggle: lightingSection.paletteToggle
   property var languageButton: null
-  readonly property bool showsPercentage: showPercentage && (connected || usesBluetoothTelemetry) && lowestLevel >= 0 && lowestLevel <= 100 && !button.vertical
-  onSettingsExpandedChanged: {
-    if (!settingsExpanded) root.focusControl(deviceSettingsToggle)
-  }
   onLightingColorExpandedChanged: {
     if (!lightingColorExpanded) root.focusControl(lightingPaletteToggle)
   }
@@ -22,16 +19,49 @@ CetraViewModel {
     if (!languageExpanded) root.focusControl(languageButton)
   }
   onAudioIdentityChanged: {
-    if (opened && !bluetoothExpanded) Qt.callLater(function () { root.focusControl(root.connectionDetailsButton) })
+    if (opened && !bluetoothExpanded) Qt.callLater(root.focusCurrentTab)
   }
   onBluetoothExpandedChanged: {
-    if (!bluetoothExpanded && opened) Qt.callLater(function () { root.focusControl(root.connectionDetailsButton) })
+    if (!bluetoothExpanded && opened) Qt.callLater(function () {
+      if (root && typeof root.focusControl === "function") root.focusControl(root.panelPage === "device" ? root.connectionDetailsButton : soundTab)
+    })
   }
   onConnectedChanged: {
     if (connected) root.bluetoothExpanded = false
-    if (opened) Qt.callLater(function () { root.focusControl(root.languageButton) })
+    else root.cancelLightingEdit()
+    if (opened) Qt.callLater(root.focusCurrentTab)
+  }
+  onBluetoothAudioConnectedChanged: {
+    if (opened) Qt.callLater(root.focusCurrentTab)
   }
   onVisibleChanged: { if (!visible) root.close() }
+
+  function focusCurrentTab() {
+    if (!root || typeof root.focusControl !== "function") return
+    root.focusControl(root.panelPage === "device" ? deviceTab : soundTab)
+  }
+  function showPage(page) {
+    if (page !== "sound" && page !== "device") return
+    if (page !== "device") root.cancelLightingEdit()
+    root.languageExpanded = false
+    root.panelPage = page
+    Qt.callLater(function () {
+      if (!root || typeof root.focusCurrentTab !== "function") return
+      root.focusCurrentTab()
+      viewport.contentY = 0
+    })
+  }
+
+  function showDevicePage(page) {
+    if (["settings", "color"].indexOf(page) < 0) return
+    root.cancelLightingEdit()
+    root.devicePage = page
+    Qt.callLater(function () {
+      if (!root || typeof root.focusControl !== "function") return
+      root.focusControl(root.devicePage === "color" ? colorTab : deviceSettingsTab)
+      viewport.contentY = 0
+    })
+  }
 
   function collectControls(item, result) {
     if (!item.visible || !item.enabled) return
@@ -79,9 +109,10 @@ CetraViewModel {
     bar: root.bar
     labelVisible: false
     hasVisualContent: true
-    fixedWidth: vertical ? -1 : barContent.implicitWidth + scaledHorizontalMargin * 2
-    fixedHeight: vertical ? Style.bar.iconSlot : -1
-    horizontalMargin: 7
+    fixedWidth: vertical ? -1 : Math.max(Style.bar.iconSlot, barContent.implicitWidth)
+    fixedHeight: vertical ? Math.max(Style.bar.iconSlot, barContent.implicitHeight) : -1
+    horizontalMargin: 0
+    verticalPadding: 0
     tooltipText: root.tr("app.tooltip", "{device}\n{status}\n{battery}", {
       device: root.tr("app.deviceName", "ROG Cetra SpeedNova"), status: root.statusLabel,
       battery: root.tr("battery.summary", "Last reported: L {left} / R {right} / Case {case}", {
@@ -93,26 +124,10 @@ CetraViewModel {
       else root.toggle()
     }
     onWheelMoved: function (delta) { if (delta !== 0) root.cycleListeningMode() }
-    Row {
+    CetraBarIndicator {
       id: barContent
       anchors.centerIn: parent
-      spacing: root.showMicLevel && button.vertical ? Style.space(2) : Style.space(5)
-      CetraIcon { iconSize: Style.bar.iconFont; color: root.barColor; anchors.verticalCenter: parent.verticalCenter }
-      MicrophoneLevel {
-        root: panelHost
-        visible: root.showMicLevel
-        anchors.verticalCenter: parent.verticalCenter
-      }
-      Text {
-        textFormat: Text.PlainText
-        visible: root.showsPercentage
-        text: root.levelText(root.lowestLevel)
-        color: root.barColor
-        font.family: root.fontFamily
-        font.pixelSize: Style.bar.iconFont
-        renderType: Text.NativeRendering
-        anchors.verticalCenter: parent.verticalCenter
-      }
+      root: panelHost
     }
   }
   KeyboardPanel {
@@ -137,11 +152,27 @@ CetraViewModel {
       Flickable {
         id: viewport
         anchors.fill: parent
+        anchors.rightMargin: scrollBar.visible ? Style.spacing.controlGap : 0
         contentWidth: width
         contentHeight: column.implicitHeight
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
+        Controls.ScrollBar.vertical: Controls.ScrollBar {
+          id: scrollBar
+          parent: keyCatcher
+          anchors.top: parent.top
+          anchors.bottom: parent.bottom
+          anchors.right: parent.right
+          width: Style.space(3)
+          policy: Controls.ScrollBar.AsNeeded
+          contentItem: Rectangle {
+            implicitWidth: Style.space(3)
+            radius: width / 2
+            color: root.dim
+            opacity: scrollBar.active || scrollBar.hovered ? 0.8 : 0.4
+          }
+        }
         Column {
           id: column
           anchors.left: parent.left
@@ -151,82 +182,186 @@ CetraViewModel {
           PanelHero {
             width: parent.width
             title: root.tr("app.title", "ROG Cetra")
-            meta: root.statusLabel
+            meta: root.connected ? root.tr("connection.usbHeader", "Connected via USB")
+              : root.bluetoothAudioConnected === true ? root.tr("connection.bluetoothConnected", "Connected via Bluetooth") : root.statusLabel
             foreground: root.foreground
             fontFamily: root.fontFamily
             iconOpacity: root.panelAvailable ? 1.0 : 0.45
             iconComponent: Component { CetraIcon { iconSize: Style.font.display; color: root.foreground } }
             trailingControl: Component {
-              ControlButton {
-                panelRoot: root
+              Button {
+                id: headerLanguageButton
                 Component.onCompleted: root.languageButton = this
                 Component.onDestruction: if (root.languageButton === this) root.languageButton = null
-                label: root.displayLocaleCode
+                text: root.displayLocaleCode
+                iconText: "文"
+                iconSize: Style.font.bodySmall
                 fontSize: Style.font.caption
                 fontFamily: root.fontFamily
                 foreground: root.foreground
                 accent: root.accent
                 bordered: true
+                focusable: true
+                selected: root.languageExpanded
+                Keys.forwardTo: [root.keyTarget]
+                Accessible.role: Accessible.Button
                 Accessible.name: root.tr("language.title", "INTERFACE LANGUAGE")
-                tooltipText: root.languageExpanded ? root.tr("language.collapse", "Interface language  -") : root.tr("language.expand", "Interface language  +")
+                Accessible.onPressAction: headerLanguageButton.clicked()
+                tooltipText: root.tr("language.current", "Interface language: {language}", { language: root.displayLocaleCode })
                 onClicked: root.languageExpanded = !root.languageExpanded
               }
             }
           }
           LanguageSection { root: panelHost; width: parent.width }
-          BatterySection { root: panelHost; width: parent.width }
-          NoiseSection { root: panelHost; width: parent.width }
-          ConnectionSection { root: panelHost; width: parent.width }
-          MicrophoneSection { root: panelHost; width: parent.width }
-          Text {
-            textFormat: Text.PlainText
+          Row {
+            id: pageTabs
             width: parent.width
-            visible: text !== ""
-            text: root.settingsFeedback()
-            color: root.dim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            wrapMode: Text.WordWrap
-          }
-          ControlButton {
-            panelRoot: root
-            id: deviceSettingsToggle
-            width: parent.width
-            visible: root.connected
-            enabled: visible
-            label: root.settingsExpanded ? root.tr("settings.collapse", "Device settings  -") : root.tr("settings.expand", "Device settings  +")
-            leftAlign: true
-            horizontalPadding: 0
-            foreground: root.foreground
-            accent: root.accent
-            fontFamily: root.fontFamily
-            fontSize: Style.font.bodySmall
-            onClicked: root.settingsExpanded = !root.settingsExpanded
+            spacing: Style.spacing.controlGap
+            ControlButton {
+              id: soundTab
+              panelRoot: root
+              width: (pageTabs.width - pageTabs.spacing) / 2
+              label: root.tr("panel.sound", "Sound")
+              selected: root.panelPage === "sound"
+              bordered: true
+              foreground: root.foreground
+              accent: root.accent
+              fontFamily: root.fontFamily
+              fontSize: Style.font.bodySmall
+              onClicked: root.showPage("sound")
+            }
+            ControlButton {
+              id: deviceTab
+              panelRoot: root
+              width: (pageTabs.width - pageTabs.spacing) / 2
+              label: root.tr("panel.device", "Device")
+              selected: root.panelPage === "device"
+              bordered: true
+              foreground: root.foreground
+              accent: root.accent
+              fontFamily: root.fontFamily
+              fontSize: Style.font.bodySmall
+              onClicked: root.showPage("device")
+            }
           }
           Column {
             width: parent.width
             spacing: Style.spacing.panelGap
-            visible: root.connected && root.settingsExpanded
+            visible: root.panelPage === "sound"
             enabled: visible
-            SettingToggle {
+            BatterySection { root: panelHost; width: parent.width }
+            NoiseSection { root: panelHost; width: parent.width }
+            BluetoothSoundSection { root: panelHost; width: parent.width }
+            ControlButton {
               panelRoot: root
               width: parent.width
-              label: root.tr("microphone.showLevel", "Show microphone level")
-              value: root.showMicLevel
-              onClicked: root.setShowMicLevel(!root.showMicLevel)
+              visible: !root.connected && root.audioIdentity !== "selected" && root.bluetoothCandidates.length > 0
+              label: root.tr("connection.selectEarbuds", "Select Bluetooth earbuds")
+              foreground: root.foreground
+              accent: root.accent
+              fontFamily: root.fontFamily
+              bordered: true
+              onClicked: root.showPage("device")
             }
-            Text {
-              textFormat: Text.PlainText
+            MicrophoneSection { root: panelHost; width: parent.width }
+          }
+          Column {
+            width: parent.width
+            spacing: Style.spacing.panelGap
+            visible: root.panelPage === "device"
+            enabled: visible
+            Row {
+              id: deviceTabs
               width: parent.width
-              visible: root.showMicLevel
-              text: root.tr("microphone.levelHelp", "Measures Cetra input only while another app uses it. Audio is not saved. Silence does not prove mute.")
-              color: root.dim
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-              wrapMode: Text.Wrap
+              spacing: Style.spacing.controlGap
+              ControlButton {
+                id: deviceSettingsTab
+                panelRoot: root
+                horizontalPadding: Style.space(10)
+                verticalPadding: Style.space(4)
+                label: root.tr("panel.settings", "Settings")
+                selected: root.devicePage === "settings"
+                foreground: root.foreground
+                accent: root.accent
+                fontFamily: root.fontFamily
+                fontSize: Style.font.caption
+                bordered: false
+                onClicked: root.showDevicePage("settings")
+              }
+              ControlButton {
+                id: colorTab
+                panelRoot: root
+                horizontalPadding: Style.space(10)
+                verticalPadding: Style.space(4)
+                label: root.tr("panel.color", "Color")
+                selected: root.devicePage === "color"
+                foreground: root.foreground
+                accent: root.accent
+                fontFamily: root.fontFamily
+                fontSize: Style.font.caption
+                bordered: false
+                onClicked: root.showDevicePage("color")
+              }
             }
-            LightingSection { id: lightingSection; root: panelHost; width: parent.width }
-            VoiceSection { root: panelHost; width: parent.width }
+            Column {
+              width: parent.width
+              spacing: Style.spacing.panelGap
+              visible: root.devicePage === "settings"
+              enabled: visible
+              SettingToggle {
+                panelRoot: root
+                width: parent.width
+                label: root.tr("microphone.showLevel", "Show microphone level")
+                value: root.showMicLevel
+                onClicked: root.setShowMicLevel(!root.showMicLevel)
+              }
+              ConnectionSection { root: panelHost; width: parent.width }
+              Column {
+                width: parent.width
+                spacing: Style.spacing.panelGap
+                visible: root.connected
+                enabled: visible
+                VoiceSection { root: panelHost; width: parent.width }
+                Text {
+                  textFormat: Text.PlainText
+                  width: parent.width
+                  visible: text !== ""
+                  text: root.settingsFeedback()
+                  color: root.dim
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                  wrapMode: Text.WordWrap
+                }
+                Text {
+                  textFormat: Text.PlainText
+                  width: parent.width
+                  text: root.tr("noise.shortcuts", "O / {off}    N / {anc}    A / {ambient}", {
+                    off: root.modeText("off"), anc: root.modeText("anc"), ambient: root.modeText("ambient")
+                  })
+                  color: root.dim
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                  wrapMode: Text.WordWrap
+                }
+              }
+            }
+            Column {
+              width: parent.width
+              spacing: Style.spacing.panelGap
+              visible: root.devicePage === "color"
+              enabled: visible
+              Text {
+                textFormat: Text.PlainText
+                width: parent.width
+                visible: !root.connected
+                text: root.tr("lighting.usbOnly", "Connect the earbuds through USB to control lighting.")
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                wrapMode: Text.Wrap
+              }
+              LightingSection { id: lightingSection; root: panelHost; width: parent.width }
+            }
           }
         }
       }

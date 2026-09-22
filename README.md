@@ -40,13 +40,28 @@ malformed lock-status responses prevent binary replacement.
 ## Use
 
 Click the bar icon to open the panel. Right-click or use the wheel to cycle noise
-modes. The vertical bar omits battery text; the horizontal bar can show the lowest
-reported earbud percentage.
+modes over USB. Each earbud silhouette fills from the bottom to show its own
+last-reported charge. Hover or open the panel for exact percentages. An empty
+outline means 0%; an internal dot marks unavailable charge. The previous
+`showPercentage` preference is ignored; saved settings do not need editing.
+The optional slanted microphone meter stays to the right, in the same fixed
+slot. Its signal changes without moving the earbud icons. A dim outline with one
+break means no signal data; a continuous bright outline means data is available.
+Only measured amplitude fills the meter.
+
+The panel opens on **Sound**: charge, noise control and microphone signal.
+The compact **文 EN/RU** button in the header opens language selection above the
+page tabs, following the MX Ergo layout. Device has compact Settings / Color tabs.
+**Device → Settings** contains connection details, the signal-meter
+preference and voice prompts. **Device → Color** contains lighting controls.
+Changing tabs does not send a headset command.
+Microphone explanations are under **Device → Settings → Details**. Long sections scroll;
+the scrollbar appears when needed. Lighting uses a circular selected-color preview.
 
 - **Noise control:** Off, ANC and Ambient. In ANC, select Low/Mid/High or Adaptive.
   A manual level requests Adaptive Off when its current state is On or Unknown.
 - **Battery:** percentages are last-reported values. Missing data is not proof of
-  case placement. Bluetooth route and charging explanations are under **Details**.
+  case placement. Bluetooth route and charging explanations are under **Device → Settings → Details**.
   A present earbud with missing battery reports stays visibly available with
   "Available; battery unknown". Its percentage is not copied from the other earbud
   or replaced with an old log value.
@@ -54,8 +69,8 @@ reported earbud percentage.
   separate from the interface language.
 - **Keyboard:** Tab/Shift+Tab traverse controls, arrows move focus, Enter/Space
   activate, Escape closes. O/N/A select noise mode; 1/2/3 select ANC level.
-  Russian-layout equivalents are supported for O/N/A. RGB arrows edit the channel;
-  Enter focuses Apply.
+  Russian-layout equivalents are supported for O/N/A. Wheel arrows edit hue/saturation; sliders adjust brightness or RGB;
+  Enter focuses Apply color.
 
 Controls require receiver/earbud availability. Once presence has been observed,
 stale battery values cannot re-enable controls. Pending settings wait up to 48
@@ -65,14 +80,14 @@ The selected state is readback, not an optimistic click result.
 
 ### Bluetooth status
 
-The compact panel shows battery, source, last-reported notice, read-only Bluetooth
-ANC and Refresh. Connection routes, profile/LE explanations, system Battery1,
-case freshness and Bluetooth microphone details are under **Details**, collapsed
+The Sound tab shows battery, transport in the header, last-reported notice,
+read-only Bluetooth ANC and Refresh. Connection routes, profile/LE explanations, system Battery1,
+case freshness and Bluetooth microphone details are under **Device → Settings → Details**, collapsed
 by default. USB availability collapses this section and restores USB controls.
-The device picker also appears directly when no audio identity is selected.
+A Select Bluetooth earbuds button opens Device when an audio identity needs selection.
 The bar tooltip has three lines: device, connection status and last-reported charge.
 
-Connect the earbuds using the system Bluetooth panel, then open **Details** in this plugin and select the Cetra audio record. Select the main audio record, not `LE-ROG`. The picker lists devices with an observed Bluetooth audio endpoint;
+Connect the earbuds using the system Bluetooth panel, then open **Device → Settings → Details** in this plugin and select the Cetra audio record. Select the main audio record, not `LE-ROG`. The picker lists devices with an observed Bluetooth audio endpoint;
 it only saves an address to identify future observations. It does not connect,
 pair, scan, or change audio profiles. No name-based automatic selection is used.
 
@@ -80,7 +95,7 @@ pair, scan, or change audio profiles. No name-based automatic selection is used.
   remains connected. ANC controls, lighting, voice settings and the signal meter require
   USB. Microphone mute remains unknown on both transports.
 - With USB earbuds available, their readings have priority. Otherwise the three
-  battery columns and bar percentage use one complete vendor Bluetooth report.
+  battery columns and bar earbud fills use one complete vendor Bluetooth report.
   Unknown fields stay unknown: a right earbud inside a closed case may stop
   reporting its percentage while the left and case still report values.
 - Bluetooth ANC is read-only. The plugin reads the verified `Asus_APP` service
@@ -119,10 +134,21 @@ or pairing between different physical headsets is performed.
 
 ### Lighting
 
-Open Device settings → Lighting → Color palette. Select the theme accent or
-integer RGB channels (0–255), then press Apply or choose an effect.
+Open **Device → Color** and click the colored circle to open the visual palette.
+Choose a color inside the circle and adjust brightness below it. A separate round
+swatch beside the wheel previews the selected color and its HEX code. Click
+**Apply color** once to save the channels, switch to manual color and send the
+color to the earbuds. **Cancel** discards the draft. **Exact color** offers HEX
+input and RGB sliders. Invalid HEX keeps the previous draft and blocks Apply
+until corrected or another control is used. The Color tab explains the USB
+requirement when only Bluetooth is available.
 
-- Changing RGB/theme selection saves preferences only.
+- Using the palette changes only a local draft. Cancel, leaving Color, closing the
+  panel or losing USB discards it. Theme changes do not overwrite the draft.
+- Effects and theme controls are hidden while editing. Theme selection saves
+  preferences only; its separate Apply button is available outside the editor.
+- Failed saves send nothing. If saving succeeds but dispatch fails, the editor
+  stays open for retry; the preference is saved but delivery is not confirmed.
 - Apply retains Static/Breathing/Strobing; from Off/Cycle/Unknown it selects Static.
 - **Update with theme changes** is separate and defaults Off. With it enabled,
   explicitly apply a colored effect once per helper/connection session. Subsequent
@@ -147,17 +173,20 @@ offer synthetic software mute as a native hardware control.
 
 ### Optional microphone signal meter
 
-Enable **Show microphone level** in Device settings to add a compact meter beside
+Enable **Show microphone level** under Device → Settings to add a compact meter beside
 the bar icon. It measures the physical Cetra input, not the default mic or audio
 after application processing. Movement means signal is present; zero is not proof
-of native mute. Missing capture data is shown separately as dim marks.
+of native mute. The Sound tab distinguishes no active recording, unavailable route, waiting for
+data and measured silence. None of these states reports native mute.
 
 The feature defaults Off and uses `bin/cetra-peak`, built by setup with `libpulse`.
 One service-owned monitor is loaded only while enabled and earbuds are available.
-Peak capture starts only when an external endpoint has a verified active audio
+Peak capture starts immediately when an external endpoint has a verified active audio
 path from Cetra. Processing clients, monitors and keepalives alone do not count.
 Its own link cannot keep it alive or count as a call. Ordinary recording can show
-a level without requesting call context. Mixed or incomplete routes fail closed.
+a level without requesting call context. Voxtype and speech-recognition capture also
+show a level while their Cetra input path is active, but never request call context.
+Mixed or incomplete routes fail closed.
 The helper pins its own stream to Cetra using Pulse and WirePlumber properties;
 no EasyEffects exclusion or application-route change is required on the tested
 PipeWire 1.6.8/WirePlumber host. Source mismatch stops capture; unavailable sources

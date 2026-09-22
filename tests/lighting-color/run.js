@@ -325,66 +325,119 @@ const cases = {
       assert.equal(writes.at(-1), `lighting static ${channel} ${255 - channel} ${channel}\n`);
     }
   },
-  'UI handlers use host slider, explicit Apply, accessibility and no startup autosend': () => {
-    assert.match(widget, /PanelSlider \{/);
+  'UI handlers use visual palette, explicit Apply, accessibility and no startup autosend': () => {
+    assert.match(widget, /LightingColorField \{/);
     assert.doesNotMatch(widget, /ColorDialog|ColorPicker|QtQuick\.Dialogs|#[0-9a-f]{6}/i);
     assert.doesNotMatch(widget, /on(?:UseThemeColor|LightingRgb|SelectedLightingColor|Accent)Changed/);
-    assert.match(widget, /onConnectedChanged: \{\s*if \(connected\) root\.bluetoothExpanded = false\s*if \(opened\) Qt.callLater\(function \(\) \{ root.focusControl\(root.languageButton\) \}\)\s*\}/, "Connection handler collapses details and repairs focus; no lighting replay");
+    assert.match(widget, /onConnectedChanged: \{\s*if \(connected\) root\.bluetoothExpanded = false\s*else root\.cancelLightingEdit\(\)\s*if \(opened\) Qt.callLater\(root.focusCurrentTab\)\s*\}/, "Connection handler collapses details and repairs focus; no lighting replay");
     assert.match(widget, /Component\.onCompleted: root\.languageButton = this/);
-    assert.match(widget, /onReleased: function \(value\) \{ root\.setLightingSetting\(modelData\.key, value\) \}/);
-    assert.match(widget, /onMoved: root\.focusControl\(channelSlider\)/);
+    assert.match(widget, /root\.focusControl\(wheel\)/);
     assert.match(widget, /onClicked: root\.applyLightingColor\(\)/);
     assert.match(widget, /\? root\.tr\("lighting\.applyColor", "Apply color"\) : root\.tr\("lighting\.applyStaticColor", "Apply static color"\)/);
     assert.match(widget, /Accessible\.role: Accessible\.Slider/);
-    assert.match(widget, /Accessible\.name: modelData\.label/);
+    assert.match(widget, /Accessible\.name: root\.tr\("lighting\.palette"/);
     assert.match(widget, /Keys\.forwardTo: \[panelRoot.keyTarget\]/);
     assert.match(widget, /onTabRequested: function \(direction\) \{ root\.moveFocus\(direction, true\) \}/);
     assert.match(widget, /root\.tr\("lighting\.lastSent",[^\n]+root\.lightingText\(root\.lighting\)/);
     assert.match(widget, /active: root\.lighting === modelData\.value/);
-    const { view, writes, status } = fixture({ useThemeColor: false, lightingRed: 17 });
-    const a = view();
-    status();
-    let focused = false;
-    a.Qt = { Key_Right: 1, Key_Up: 2, Key_Left: 3, Key_Down: 4, Key_Return: 5, Key_Enter: 6 };
-    a.opened = true;
-    a.viewport = { contentItem: {}, contentY: 0, contentHeight: 1000, height: 100 };
-    a.applyColorButton = { visible: true, enabled: true, height: 30,
-      forceActiveFocus() { focused = true; },
-      mapToItem(content) { assert.equal(content, a.viewport.contentItem); return { y: 700 }; },
-    };
-    a.modelData = { key: 'lightingRed' };
-    a.value = 17;
-    const handler = widget.match(/id: channelSlider[\s\S]*?Keys\.onPressed: function \(event\) \{([\s\S]*?)^            \}/m)[1];
-    a.event = { key: a.Qt.Key_Right };
-    vm.runInContext(handler, a);
-    assert.equal(a.lightingRgb[0], 18);
-    assert.equal(a.event.accepted, true);
-    a.event = { key: a.Qt.Key_Return };
-    vm.runInContext(handler, a);
-    assert.equal(focused, true);
-    assert.equal(a.viewport.contentY, 630, 'Slider Return reveals Apply using production focusControl');
-    focused = false;
-    a.viewport.contentY = 0;
-    a.event = { key: a.Qt.Key_Enter };
-    vm.runInContext(handler, a);
-    assert.equal(focused, true);
-    assert.equal(a.viewport.contentY, 630);
-    assert.deepEqual(writes, []);
+    const source = fs.readFileSync(path.join(dir, 'LightingColorField.qml'), 'utf8');
+    const ctx = vm.createContext({hue: 0.5, saturation: 0.5, brightness: 0.5,
+      wheel: {width: 200, height: 200}, publishes: 0});
+    functions(ctx, source);
+    ctx.publishDraft = () => ctx.publishes++;
+    ctx.choosePoint(200,100); assert.equal(ctx.hue,0); assert.equal(ctx.saturation,1);
+    ctx.choosePoint(100,0); assert.equal(ctx.hue,0.25);
+    ctx.choosePoint(100,100); assert.equal(ctx.hue,0.25); assert.equal(ctx.saturation,0);
+    ctx.choosePoint(500,100); assert.equal(ctx.saturation,1);
+    ctx.wheel.width = 0; ctx.choosePoint(0,0); assert.equal(ctx.saturation,1);
+    ctx.wheel.width = 200;
+    let accepted = false;
+    ctx.field = ctx; ctx.width = 200; ctx.height = 200;
+    ctx.acceptRequested = () => { accepted = true; };
+    ctx.Qt = {Key_Left:1,Key_Right:2,Key_Up:3,Key_Down:4,Key_Return:5,Key_Enter:6};
+    const handler = source.match(/id: wheel[\s\S]*?Keys\.onPressed: function\(event\) \{([\s\S]*?)^    \}/m)[1];
+    ctx.event = {key:2}; ctx.hue = 0; ctx.saturation = 0.5;
+    vm.runInContext(`(function(){${handler}})()`,ctx); assert.ok(Math.abs(ctx.hue-1/360)<1e-9);
+    ctx.event = {key:4}; vm.runInContext(`(function(){${handler}})()`,ctx); assert.equal(ctx.saturation,0.49);
+    ctx.event = {key:5}; vm.runInContext(`(function(){${handler}})()`,ctx); assert.equal(accepted,true);
+
   },
   'collapsed color controls are disabled and expansion has a keyboard entry': () => {
-    assert.match(widget, /id: deviceSettingsToggle[\s\S]*?focusable: true/);
-    assert.match(widget, /visible: root\.connected && root\.settingsExpanded\s+enabled: visible/);
+    assert.match(widget, /id: deviceTab[\s\S]*?onClicked: root\.showPage\("device"\)/);
+    assert.match(widget, /visible: root\.panelPage === "device"\s+enabled: visible/);
     assert.match(widget, /visible: root\.lightingColorExpanded\s+enabled: visible/);
-    assert.match(widget, /enabled: root\.opened && root\.settingsExpanded && root\.lightingColorExpanded && root\.connected/);
-    assert.match(widget, /onSettingsExpandedChanged:[\s\S]*?root\.focusControl\(deviceSettingsToggle\)/);
+    assert.match(widget, /enabled: root\.opened && root\.settingsExpanded && !root\.lightingColorExpanded && root\.connected/);
+    assert.match(widget, /root\.panelPage === "device" \? deviceTab : soundTab/);
     assert.match(widget, /onLightingColorExpandedChanged:[\s\S]*?root\.focusControl\(lightingPaletteToggle\)/);
+  },
+  'atomic RGB selection validates input and preserves canonical settings': () => {
+    const {owner,host,persisted,writes}=fixture({autoThemeColor:true,locale:'en'});
+    for(const bad of [null,{},[1,2],[1,2,3,4],[-1,0,0],[256,0,0],[0,.5,0],[NaN,0,0],[Infinity,0,0],['1',2,3]])
+      assert.equal(owner.updateLightingColor(bad),false);
+    assert.equal(persisted.length,0);
+    assert.equal(owner.updateLightingColor([12,34,56],{locale:'ru',fallbackKey:'keep'}),true);
+    assert.equal(persisted.length,1);
+    assert.equal(owner.settings.locale,'en');assert.equal(owner.settings.fallbackKey,'keep');
+    assert.equal(owner.settings.autoThemeColor,true);assert.equal(owner.settings.customOther.keep,true);
+    for(const [key,value] of Object.entries({lightingRed:12,lightingGreen:34,lightingBlue:56,useThemeColor:false})) {
+      assert.equal(owner.settings[key],value);assert.equal(owner.pendingPreferences[key],value);
+    }
+    assert.equal(owner.updateLightingColor([12,34,56]),true);assert.equal(persisted.length,1);
+    assert.deepEqual(writes,[]);
+    const state=JSON.stringify(owner.inlineSettings),pending=JSON.stringify(owner.pendingPreferences);
+    host.updateEntryInline=()=>false;
+    assert.equal(owner.updateLightingColor([1,2,3]),false);
+    assert.equal(JSON.stringify(owner.inlineSettings),state);assert.equal(JSON.stringify(owner.pendingPreferences),pending);
+  },
+  'color draft cancels without saving and applies in one action': () => {
+    const {owner,view,status,persisted,writes,host}=fixture();status('static');const a=view();
+    Object.assign(a,{opened:true,panelPage:'device',devicePage:'color',lightingColorExpanded:false});
+    a.beginLightingEdit();assert.equal(a.lightingColorExpanded,true);
+    assert.deepEqual(Array.from(a.lightingDraftRgb),[51,102,153]);
+    a.setLightingDraftChannel(0,200);assert.equal(persisted.length,0);
+    a.accent={r:1,g:0,b:0};assert.deepEqual(Array.from(a.lightingDraftRgb),[200,102,153]);
+    a.cancelLightingEdit();assert.equal(a.lightingColorExpanded,false);assert.equal(persisted.length,0);
+    a.beginLightingEdit();assert.deepEqual(Array.from(a.lightingDraftRgb),[255,0,0]);
+    for(const [i,v] of [[-1,2],[3,1],[0,NaN],[0,1.5],[0,256]]) a.setLightingDraftChannel(i,v);
+    assert.deepEqual(Array.from(a.lightingDraftRgb),[255,0,0]);
+    a.setLightingDraftChannel(0,200);
+    const save=host.updateEntryInline;host.updateEntryInline=()=>false;
+    assert.equal(a.commitLightingEdit(),false);assert.equal(a.lightingDraftError,true);assert.equal(a.lightingColorExpanded,true);
+    assert.deepEqual(writes,[],'Failed save cannot send a color');
+    host.updateEntryInline=save;
+    assert.equal(a.commitLightingEdit(),true);assert.equal(persisted.length,1);assert.equal(a.lightingColorExpanded,false);
+    assert.equal(owner.settings.useThemeColor,false);assert.equal(owner.settings.lightingRed,200);
+    assert.deepEqual(writes,['lighting static 200 0 0\n'],'One Apply sends exactly one command with the accepted draft');
+    assert.equal(a.commitLightingEdit(),false,'Closed editor cannot apply a second time');
+    assert.equal(writes.length,1);
+    a.beginLightingEdit();owner.connected=false;
+    assert.equal(a.commitLightingEdit(),false);assert.equal(persisted.length,1);
+    a.cancelLightingEdit();a.beginLightingEdit();assert.equal(a.lightingColorExpanded,false);
+  },
+  'one-step Apply preserves colored effects, handles a stopped helper and avoids stale binding RGB': () => {
+    for (const effect of ['unknown','off','cycle','static','breathing','strobing']) {
+      const {owner,view,status,writes,persisted}=fixture();status(effect);const a=view();
+      Object.assign(a,{opened:true,panelPage:'device',devicePage:'color',lightingColorExpanded:false});
+      a.beginLightingEdit();a.setLightingDraftChannel(0,17);a.setLightingDraftChannel(1,34);a.setLightingDraftChannel(2,51);
+      owner.deviceWatchProc.running=false;
+      assert.equal(a.commitLightingEdit(),false);assert.equal(a.lightingColorExpanded,true);
+      assert.equal(a.lightingDraftError,false);assert.equal(a.lightingFeedback,'rejected');
+      assert.equal(persisted.length,1);assert.deepEqual(writes,[]);
+      owner.deviceWatchProc.running=true;
+      // A stale host snapshot must not change the exact draft passed to the command.
+      Object.defineProperty(a,'settings',{value:{useThemeColor:true}});
+      assert.equal(a.commitLightingEdit(),true);assert.equal(persisted.length,1);
+      const expected=['static','breathing','strobing'].includes(effect)?effect:'static';
+      assert.deepEqual(writes,[`lighting ${expected} 17 34 51\n`]);
+      assert.equal(a.lightingColorExpanded,false);assert.equal(a.lightingFeedback,'sent');
+    }
   },
   'real Qt QColor and variant calls preserve normalized theme and manual channels': () => {
     const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'cetra-qt-color-'));
     try {
       const flags = execFileSync('pkg-config', ['--cflags', '--libs', 'Qt6Quick', 'Qt6Qml', 'Qt6Gui'], { encoding: 'utf8' }).trim().split(/\s+/);
       const binary = path.join(temp, 'qt-color');
-      execFileSync('c++', ['-std=c++17', '-Wall', '-Wextra', '-Werror', path.join(__dirname, 'qt-color.cpp'), '-o', binary, ...flags], { stdio: 'inherit' });
+      execFileSync('c++', ['-std=c++17', '-fPIC', '-Wall', '-Wextra', '-Werror', path.join(__dirname, 'qt-color.cpp'), '-o', binary, ...flags], { stdio: 'inherit' });
       execFileSync(binary, [dir], { stdio: 'inherit', env: { ...process.env, QT_QPA_PLATFORM: 'offscreen', QML_DISABLE_DISK_CACHE: '1' }, timeout: 30000 });
     } finally {
       fs.rmSync(temp, { recursive: true, force: true });

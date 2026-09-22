@@ -1,69 +1,46 @@
 import QtQuick
 import qs.Commons
 
-Rectangle {
+Column {
   id: section
   required property var root
-  visible: root.panelAvailable && (root.connected || root.bluetoothExpanded)
+  visible: root.panelAvailable
   activeFocusOnTab: true
   Keys.forwardTo: [root.keyTarget]
   Keys.onPressed: function (event) { event.accepted = true }
+  spacing: Style.spacing.labelGap
   Accessible.role: Accessible.StaticText
-  Accessible.name: root.tr("microphone.unknown", "Microphone mute: unknown")
+  Accessible.name: root.tr("microphone.signalDescription", "Microphone: {state}", { state: root.microphoneLevelText() })
   Accessible.description: root.tr("microphone.tooltip", "Mic state: unknown / follow headset voice prompt")
-  border.width: activeFocus ? Style.normalBorderWidth : 0
-  border.color: root.accent
-  implicitHeight: microphoneState.implicitHeight + Style.spacing.controlPaddingY * 2
-  radius: Style.cornerRadius
-  color: Style.normalFillFor(root.foreground, root.accent)
-  Row {
-    id: microphoneState
-    anchors.left: parent.left
-    anchors.right: parent.right
-    anchors.margins: Style.space(12)
-    anchors.verticalCenter: parent.verticalCenter
-    spacing: Style.space(12)
-    CetraIcon {
-      name: "cetra"
-      color: root.dim
-      iconSize: Style.font.display
-      anchors.verticalCenter: parent.verticalCenter
-    }
-    Column {
-      width: parent.width - parent.children[0].width - parent.spacing
-      spacing: Style.space(3)
-      Text {
-        textFormat: Text.PlainText
-        text: root.tr("microphone.unknown", "Microphone mute: unknown")
-        color: root.foreground
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
-        font.bold: true
-        width: parent.width
-        wrapMode: Text.WordWrap
-      }
-      Text {
-        textFormat: Text.PlainText
-        width: parent.width
-        visible: root.showMicLevel && root.connected
-        text: root.opened && root.showMicLevel ? root.microphoneLevelText() : ""
-        color: root.dim
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
-        wrapMode: Text.WordWrap
-      }
-      Text {
-        textFormat: Text.PlainText
-        text: !root.connected ? root.tr("microphone.usbOnly", "Signal metering requires USB. Follow the headset voice prompt for native mute.")
-          : root.callContextActive
-          ? root.tr("microphone.callGesture", "Call mode requested. Follow the headset voice prompt; tap behavior is not confirmed.")
-          : root.tr("microphone.mediaGesture", "Call mode not requested. A tap may control playback.")
-        color: root.dim
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
-        width: parent.width
-        wrapMode: Text.WordWrap
-      }
+  Text {
+    textFormat: Text.PlainText
+    width: parent.width
+    text: root.tr("microphone.title", "Microphone")
+    color: section.activeFocus ? root.accent : root.foreground
+    font.family: root.fontFamily
+    font.pixelSize: Style.font.bodySmall
+    font.bold: true
+  }
+  Text {
+    textFormat: Text.PlainText
+    width: parent.width
+    text: root.microphoneLevelText()
+    color: root.dim
+    font.family: root.fontFamily
+    font.pixelSize: Style.font.caption
+    wrapMode: Text.WordWrap
+  }
+  Rectangle {
+    width: parent.width
+    height: Style.space(4)
+    radius: height / 2
+    color: root.rule
+    visible: root.microphoneSignalState() === "silent" || root.microphoneSignalState() === "signal"
+    Rectangle {
+      height: parent.height
+      radius: height / 2
+      width: parent.width * Math.max(0, Math.min(1, Number(root.microphoneLevel) || 0))
+      color: root.foreground
     }
   }
 }

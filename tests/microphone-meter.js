@@ -66,3 +66,50 @@ assert.equal(vm.runInContext(label,b),'Available; battery unknown');
 b.modelData.present = false;
 assert.equal(vm.runInContext(opacity,b),0.4);
 console.log('PASS microphone meter: exact source, external active links, self-exclusion, null/zero distinction, call filter and presence-only battery');
+
+// Execute first admission and cooldown without launching audio processes.
+ctx.meter = ctx;
+ctx.retry = {running:false, restart(){this.running=true;}};
+ctx.stopDeadline = {stop(){},restart(){}};
+ctx.inUse=true; ctx.sourceName=mic.name; ctx.peakCommand='/fixture/cetra-peak';
+ctx.peaks={running:false,capturedSource:'',command:[]};
+ctx.reconcile();
+assert.equal(ctx.peaks.running,true,'First verified capture starts immediately');
+assert.equal(ctx.peaks.capturedSource,mic.name);
+assert.deepEqual(Array.from(ctx.peaks.command),[ctx.peakCommand,mic.name]);
+ctx.peaks.running=false;ctx.meterStopped();
+ctx.reconcile();assert.equal(ctx.peaks.running,false,'Failure backoff blocks immediate restart');
+ctx.inUse=false;ctx.reconcile();ctx.inUse=true;ctx.reconcile();
+assert.equal(ctx.peaks.running,false,'Capture toggles cannot bypass failure cooldown');
+ctx.retry.running=false;ctx.startPeaks();assert.equal(ctx.peaks.running,true);
+ctx.sourceName=other.name;ctx.reconcile();assert.equal(ctx.peaks.running,false);
+assert.equal(ctx.peaks.capturedSource,mic.name,'Stop old source before replacement');
+ctx.meterStopped();ctx.retry.running=false;ctx.startPeaks();
+assert.equal(ctx.peaks.capturedSource,other.name);
+ctx.peaks.running=false;ctx.sourceName='';ctx.retry.running=false;ctx.reconcile();
+assert.equal(ctx.peaks.running,false,'Missing source never starts helper');
+console.log('PASS meter admission: immediate start, failure backoff, rapid capture toggle, source change');
+
+// User-visible states use production functions; Bluetooth must never show USB PCM.
+const panel = vm.createContext({connected:true, showMicLevel:true,
+  microphoneCaptureState:'inactive',microphoneLevel:0.5,
+  tr:(_key,fallback,values={})=>fallback.replace(/\{(\w+)\}/g,(_m,k)=>values[k])});
+panel.root=panel;
+for (const match of read('CetraViewModel.qml').matchAll(/^  function microphone\w+\([^)]*\) \{[\s\S]*?^  \}/gm)) vm.runInContext(match[0],panel);
+assert.equal(panel.microphoneSignalState(),'idle','Stale numeric level cannot override inactive capture');
+panel.microphoneCaptureState='unknown';assert.equal(panel.microphoneSignalState(),'unavailable');
+panel.microphoneCaptureState='active';panel.microphoneLevel=null;
+assert.equal(panel.microphoneSignalState(),'waiting');
+for(const invalid of [NaN,Infinity,-1,'0.5']) {
+ panel.microphoneLevel=invalid;assert.equal(panel.microphoneSignalState(),'waiting');
+}
+panel.microphoneLevel=0;assert.equal(panel.microphoneSignalState(),'silent');
+assert.equal(panel.microphoneLevelText(),'No signal · 0%');
+panel.microphoneLevel=.25;assert.equal(panel.microphoneLevelText(),'Signal: 25%');
+panel.microphoneLevel=2;assert.equal(panel.microphoneLevelText(),'Signal: 100%');
+panel.showMicLevel=false;assert.equal(panel.microphoneSignalState(),'disabled');
+panel.connected=false;panel.showMicLevel=true;
+assert.equal(panel.microphoneSignalState(),'usb-only');
+assert.equal(panel.microphoneLevelText(),'Signal level requires USB');
+assert.match(panel.microphoneHelpText(),/Microphone mute: unknown/);
+console.log('PASS panel signal: inactive, unknown, awaiting data, zero, signal, disabled, Bluetooth USB-only');

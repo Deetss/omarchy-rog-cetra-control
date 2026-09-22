@@ -178,11 +178,17 @@ function fixture() {
   vm.runInContext(collapse, ctx);
   assert.equal(palette.activeFocus, true);
   assert.equal(ctx.viewport.contentY, 0, 'Collapsing palette reveals its toggle');
-  ctx.deviceSettingsToggle = palette;
-  ctx.settingsExpanded = false;
-  ctx.viewport.contentY = 530;
-  vm.runInContext(source.match(/onSettingsExpandedChanged: \{([\s\S]*?)^  \}/m)[1], ctx);
-  assert.equal(ctx.viewport.contentY, 0, 'Collapsing settings reveals its toggle');
+  ctx.soundTab = palette;
+  ctx.deviceTab = item('device-tab');
+  ctx.Qt.callLater = fn => fn();
+  ctx.showPage('device');
+  assert.equal(ctx.panelPage, 'device');
+  assert.equal(ctx.deviceTab.activeFocus, true);
+  assert.equal(ctx.viewport.contentY, 0, 'Tab switch resets scroll position');
+  ctx.showPage('sound');
+  assert.equal(palette.activeFocus, true);
+  ctx.showPage('invalid');
+  assert.equal(ctx.panelPage, 'sound', 'Unknown tab is ignored');
   ctx.languageButton = palette;
   ctx.languageExpanded = false;
   apply.forceActiveFocus();
@@ -201,7 +207,12 @@ function fixture() {
 }
 
 // Wiring checks tie the exercised cursor model to every actual production control.
-assert.equal((source.match(/\bButton \{/g) || []).length, 1, 'Only the shared focusable button may use raw Button');
+assert.equal((source.match(/\bButton \{/g) || []).length, 2, 'Shared control and the native MX-style header button are the only raw Buttons');
+const headerLanguage = read('Cetra.qml').match(/trailingControl: Component \{([\s\S]*?)^            \}/m)[1];
+assert.match(headerLanguage, /focusable: true/);
+assert.match(headerLanguage, /Keys\.forwardTo: \[root\.keyTarget\]/);
+assert.match(headerLanguage, /Accessible\.onPressAction: headerLanguageButton\.clicked\(\)/);
+assert.match(read('Cetra.qml'), /LanguageSection \{ root: panelHost; width: parent.width \}\s+Row \{\s+id: pageTabs/);
 assert.equal((source.match(/\bToggleSwitch \{/g) || []).length, 1, 'All switches use the single-click-owner row');
 assert.equal((source.match(/\bSettingToggle \{/g) || []).length, 4);
 assert.doesNotMatch(source, /alwaysCallContext|setAlwaysCallContext/);
@@ -234,6 +245,7 @@ console.log('PASS keyboard: 4 behavioral groups + control wiring (offline, not Q
   const {ctx, item, actions} = fixture();
   const language = item('language'), usb = item('usb-action');
   ctx.languageButton = language;
+  ctx.soundTab = language; ctx.deviceTab = item('device-tab'); ctx.panelPage = 'sound';
   const pending = [];
   ctx.Qt.callLater = fn => pending.push(fn);
   usb.forceActiveFocus();
@@ -246,4 +258,44 @@ console.log('PASS keyboard: 4 behavioral groups + control wiring (offline, not Q
   ctx.opened = false;
   vm.runInContext(source.match(/onConnectedChanged: \{([\s\S]*?)^  \}/m)[1],ctx);
   assert.equal(pending.length,0);
+}
+
+// A Bluetooth-only disconnect can leave the panel visible when configured so.
+{
+  const {ctx,item,actions}=fixture();
+  ctx.soundTab=item('sound');ctx.deviceTab=item('device');
+  ctx.panelPage='device';
+  const refresh=item('refresh');refresh.forceActiveFocus();
+  ctx.Qt.callLater=fn=>fn();ctx.bluetoothAudioConnected=false;
+  refresh.visible=false;
+  vm.runInContext(source.match(/onBluetoothAudioConnectedChanged: \{([\s\S]*?)^  \}/m)[1],ctx);
+  assert.equal(ctx.deviceTab.activeFocus,true);assert.deepEqual(actions,[]);
+}
+
+// Deferred focus can run during QML hot reload after the old view lost methods.
+{
+  const {ctx}=fixture();
+  const pending=[];ctx.Qt.callLater=fn=>pending.push(fn);
+  ctx.showPage('device');
+  ctx.root={};
+  assert.doesNotThrow(()=>ctx.focusCurrentTab());
+  assert.doesNotThrow(()=>pending.shift()());
+  ctx.root=null;
+  assert.doesNotThrow(()=>ctx.focusCurrentTab());
+}
+
+// Device sub-tabs cancel the editor and restore visible tab focus; no command.
+{
+  const {ctx,item,actions}=fixture();
+  ctx.deviceSettingsTab=item('settings');ctx.colorTab=item('color');
+  ctx.deviceTab=item('device');ctx.soundTab=item('sound');ctx.panelPage='device';
+  ctx.Qt.callLater=fn=>fn();ctx.lightingColorExpanded=true;
+  ctx.showDevicePage('color');assert.equal(ctx.devicePage,'color');
+  assert.equal(ctx.colorTab.activeFocus,true);assert.equal(ctx.lightingColorExpanded,false);
+  ctx.lightingColorExpanded=true;ctx.showDevicePage('settings');
+  assert.equal(ctx.deviceSettingsTab.activeFocus,true);assert.equal(ctx.lightingColorExpanded,false);
+  ctx.showDevicePage('invalid');assert.equal(ctx.devicePage,'settings');
+  ctx.lightingColorExpanded=true;ctx.connected=false;
+  vm.runInContext(source.match(/onConnectedChanged: \{([\s\S]*?)^  \}/m)[1],ctx);
+  assert.equal(ctx.lightingColorExpanded,false);assert.deepEqual(actions,[]);
 }

@@ -22,13 +22,29 @@ Item {
     try { return boundedPeak(JSON.parse(line).level) } catch (_) { return null }
   }
 
+  function startPeaks() {
+    if (!peaks.running && meter.inUse && meter.sourceName && !retry.running) {
+      peaks.capturedSource = meter.sourceName
+      peaks.command = [meter.peakCommand, meter.sourceName]
+      peaks.running = true
+    }
+  }
+
   function reconcile() {
-    retry.stop()
+    var wasRunning = peaks.running
     if (!inUse || peaks.capturedSource !== sourceName) {
       level = null
       if (peaks.running) { peaks.running = false; stopDeadline.restart() }
     }
-    if (inUse && !peaks.running) retry.start()
+    // The first admission is immediate. Never cancel an existing exit backoff.
+    if (inUse && !wasRunning) startPeaks()
+  }
+
+  function meterStopped() {
+    stopDeadline.stop()
+    meter.level = null
+    // Even if capture changes during recovery, keep the minimum restart delay.
+    retry.restart()
   }
 
   Process {
@@ -42,23 +58,13 @@ Item {
       }
     }
     onRunningChanged: {
-      if (!running) {
-        stopDeadline.stop()
-        meter.level = null
-        if (meter.inUse) retry.restart()
-      }
+      if (!running) meter.meterStopped()
     }
   }
   Timer {
     id: retry
     interval: 2000
-    onTriggered: {
-      if (!peaks.running && meter.inUse && meter.sourceName) {
-        peaks.capturedSource = meter.sourceName
-        peaks.command = [meter.peakCommand, meter.sourceName]
-        peaks.running = true
-      }
-    }
+    onTriggered: meter.startPeaks()
   }
   Component.onCompleted: reconcile()
   Timer {

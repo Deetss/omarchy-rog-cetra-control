@@ -22,7 +22,6 @@
     "defaultSection": "right",
     "defaults": {
       "locale": "system",
-      "showPercentage": true,
       "showMicLevel": false,
       "hideWhenReceiverMissing": true,
       "useThemeColor": true,
@@ -45,12 +44,6 @@
         "label": "Show microphone signal level",
         "description": "Opt-in audio peak capture while another app uses Cetra. No recording is saved; silence is not native mute readback. Requires the libpulse helper built by setup.",
         "defaultValue": false
-      },
-      {
-        "key": "showPercentage",
-        "type": "boolean",
-        "label": "Show battery percent in the bar",
-        "defaultValue": true
       },
       {
         "key": "hideWhenReceiverMissing",

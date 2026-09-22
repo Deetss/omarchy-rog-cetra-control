@@ -348,17 +348,18 @@ test('compact copy preserves unknown mute, shared battery history and conditiona
   assert.equal(data['status.presenceConfirmed'], 'Connected');
   assert.equal(data['battery.lastReported'], 'Battery values are last reported.');
   assert.equal(data['lighting.useThemeColor'], 'Match desktop theme');
-  assert.match(widget, /Accessible.name: root\.tr\("microphone\.unknown", "Microphone mute: unknown"\)/);
-  assert.match(widget, /text: root\.tr\("microphone\.unknown", "Microphone mute: unknown"\)/);
-  assert.match(widget, /visible: root\.lighting !== "unknown"\s+text: root\.tr\("lighting\.lastSent"/);
+  assert.match(widget, /Accessible.name: root\.tr\("microphone\.signalDescription"/);
+  assert.match(widget, /text: root\.microphoneHelpText\(\)/);
+  assert.match(widget, /root\.tr\("microphone\.unknown", "Microphone mute: unknown"\)/);
+  assert.match(widget, /visible: !root\.lightingColorExpanded && root\.lighting !== "unknown"\s+text: root\.tr\("lighting\.lastSent"/);
   assert.match(widget, /contentWidth: panel\.fittedContentWidth\(Style\.space\(380\)\)/);
   const help = widget.match(/^\s*text: (root\.selectedLightingColor === null[\s\S]*?)^\s*color: root\.dim/m)[1];
   const ctx = vm.createContext({ root: {
     selectedLightingColor: {}, useThemeColor: true, tr: (key, fallback) => fallback,
   } });
-  assert.equal(vm.runInContext(help, ctx), 'Turn off Match desktop theme to choose RGB.');
+  assert.equal(vm.runInContext(help, ctx), 'Apply in the palette saves and sends the color.');
   ctx.root.useThemeColor = false;
-  assert.equal(vm.runInContext(help, ctx), 'Choose a color, then apply it.');
+  assert.equal(vm.runInContext(help, ctx), 'Apply in the palette saves and sends the color.');
   ctx.root.selectedLightingColor = null;
   assert.equal(vm.runInContext(help, ctx), 'Invalid RGB settings. Choose integer channels from 0 to 255.');
 });
@@ -403,7 +404,7 @@ test('production widget functions consume catalogs, interpolate reports and pres
 
   // Sentinel text is a fixture, not a shipped translation. Exercise actual widget expressions.
   i18n._english = { ...i18n._english, 'noise.ambient': '[mode]', 'lighting.static': '[effect]',
-    'lighting.channelValue': '{value} = {channel}', 'battery.percentage': '{value} pct',
+    'lighting.palette': '[palette]', 'battery.percentage': '{value} pct',
     'report.chargingCompact': '[charging]', 'report.noLiveStatus': '[no live status]',
     'report.unavailable': '[unavailable]', 'report.notCharging': '[not charging]' };
   assert.equal(ctx.batteryStatusText(true, true, false), '[charging]');
@@ -416,13 +417,13 @@ test('production widget functions consume catalogs, interpolate reports and pres
   assert.equal(ctx.lightingText('static'), '[effect]');
   assert.equal(ctx.levelText(42), '42 pct');
   ctx.lighting = 'static';
-  ctx.lightingRgb = [17, 34, 51];
+  ctx.lightingDraftRgb = [17, 34, 51];
   ctx.index = 1;
   ctx.modelData = { label: 'Green' };
   const lastSent = widget.match(/^\s*text: (root\.tr\("lighting\.lastSent".*)$/m)[1];
   assert.equal(vm.runInContext(lastSent, ctx), 'Last sent: [effect]');
-  const channelValue = widget.match(/^\s*text: (root\.tr\("lighting\.channelValue".*)$/m)[1];
-  assert.equal(vm.runInContext(channelValue, ctx), '34 = Green');
+  const paletteName = widget.match(/^\s*Accessible.name: (root\.tr\("lighting\.palette".*)$/m)[1];
+  assert.equal(vm.runInContext(paletteName, ctx), '[palette]');
   const tooltip = widget.match(/^    tooltipText: ([\s\S]*?)^    \}\)/m)[1] + '})';
   Object.assign(ctx, { statusLabel: 'Status', leftLevel: 0, rightLevel: 42, caseLevel: null,
     leftPresent: false, rightPresent: true, leftCharging: true, rightCharging: false, caseCharging: null });

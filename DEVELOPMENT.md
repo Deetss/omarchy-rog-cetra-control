@@ -1,5 +1,22 @@
 # Development notes
 
+## External action approval
+
+- Local development and hardware testing do not authorize publication. Prepare
+  changes and submission drafts locally; obtain explicit confirmation of the
+  specific action, destination and version before pushing, publishing a release,
+  or creating/editing/commenting on/closing an external issue or PR.
+- A future plan to submit, a general "continue", successful tests, sudo access,
+  or approval of a previous version is not approval to submit the current version.
+  A concrete direct instruction already authorizes that exact action; do not
+  request redundant confirmation.
+- Show the finished content and intended destination before asking when approval
+  is missing. Wait for the answer. Do not delegate around this boundary or perform
+  an unapproved rollback/withdrawal after an accidental publication.
+- On 2026-09-23 the user authorized committing and pushing the completed local UI
+  work to this repository. This does not authorize Marketplace actions, releases,
+  or changes to update request 7774.
+
 ## Coordinator and worker roles
 
 - The primary agent coordinates the team: define bounded tasks and acceptance
@@ -15,6 +32,13 @@
   If delegation is unavailable, report that limitation; do not silently switch
   models or take over substantial implementation. Follow higher-priority host
   instructions and explicit user exceptions.
+
+## Language control standard
+
+Follow the local MX Ergo reference (ErgoPanel.qml): a compact native button with
+文 and the effective locale code in PanelHero.trailingControl. Expand the language
+grid directly below the header, above all page tabs. Keep language access on every
+page; do not relocate it into Device or a settings subsection.
 
 ## Quick Reference
 

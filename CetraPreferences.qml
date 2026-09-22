@@ -73,6 +73,20 @@ Item {
     }
     return changed
   }
+  function updateLightingColor(rgb, fallback) {
+    if (!hostReady || typeof shell.updateEntryInline !== "function" || !Array.isArray(rgb) || rgb.length !== 3) return false
+    for (var value of rgb)
+      if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 255) return false
+    if (settings.lightingRed === rgb[0] && settings.lightingGreen === rgb[1]
+        && settings.lightingBlue === rgb[2] && settings.useThemeColor === false) return true
+    var values = { lightingRed: rgb[0], lightingGreen: rgb[1], lightingBlue: rgb[2], useThemeColor: false }
+    var entry = Object.assign({}, fallback || {}, settings, values, { id: manifest.id })
+    if (!shell.updateEntryInline(manifest.id, entry)) return false
+    pendingPreferences = Object.assign({}, pendingPreferences, values)
+    inlineSettings = entry
+    preferenceReadback.restart()
+    return true
+  }
   function queueSettingsRead() {
     if (!hostReady) return
     settingsReadPending = true

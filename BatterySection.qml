@@ -41,11 +41,24 @@ Column {
           textFormat: Text.PlainText
           width: parent.width
           text: root.levelText(modelData.value)
+          height: Style.font.heading * 1.4
+          verticalAlignment: Text.AlignVCenter
           horizontalAlignment: Text.AlignHCenter
           color: modelData.value !== null && Number(modelData.value) <= 20 ? root.warningColor : root.foreground
           font.family: root.fontFamily
           font.pixelSize: modelData.value === null ? Style.font.bodySmall : Style.font.heading
           font.bold: modelData.value !== null
+        }
+        Rectangle {
+          width: parent.width
+          height: Style.space(2)
+          color: root.rule
+          Rectangle {
+            height: parent.height
+            width: parent.width * Math.max(0, Math.min(100, Number(modelData.value || 0))) / 100
+            color: modelData.value !== null && Number(modelData.value) <= 20 ? root.warningColor : root.foreground
+            Behavior on width { NumberAnimation { duration: 150 } }
+          }
         }
         Text {
           textFormat: Text.PlainText
@@ -61,28 +74,9 @@ Column {
           font.pixelSize: Style.font.caption
           wrapMode: Text.WordWrap
         }
-        Rectangle {
-          width: parent.width
-          height: Style.space(2)
-          color: root.rule
-          Rectangle {
-            height: parent.height
-            width: parent.width * Math.max(0, Math.min(100, Number(modelData.value || 0))) / 100
-            color: modelData.value !== null && Number(modelData.value) <= 20 ? root.warningColor : root.foreground
-            Behavior on width { NumberAnimation { duration: 150 } }
-          }
-        }
+
       }
     }
-  }
-  Text {
-    textFormat: Text.PlainText
-    width: parent.width
-    text: root.batterySourceText()
-    color: root.dim
-    font.family: root.fontFamily
-    font.pixelSize: Style.font.caption
-    wrapMode: Text.WordWrap
   }
   Text {
     textFormat: Text.PlainText

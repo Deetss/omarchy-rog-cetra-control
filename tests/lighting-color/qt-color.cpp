@@ -8,6 +8,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QQuickItem>
+#include <QQuickWindow>
+#include <QImage>
+#include <QKeyEvent>
 #include <iostream>
 #include <memory>
 
@@ -215,6 +218,158 @@ Item {
       QCoreApplication::processEvents();
     }
   }
+
+  // Load the complete production palette; only host tokens/model are substituted.
+  QFile paletteFile(dir + "/LightingColorField.qml");
+  if (!paletteFile.open(QIODevice::ReadOnly)) return 1;
+  QString paletteQml = QString::fromUtf8(paletteFile.readAll());
+  paletteQml.replace("import qs.Commons", "");
+  paletteQml.replace("Style.", "style.");
+  paletteQml.replace("required property var root", R"QML(
+  width: 360
+  property QtObject style: QtObject {
+    function space(value) { return value }
+    property QtObject font: QtObject { property int caption: 12 }
+  }
+  property QtObject root: QtObject {
+    property var lightingDraftRgb: [51, 102, 153]
+    property bool lightingColorExpanded: true
+    property bool connected: true
+    property color accent: Qt.rgba(0.5,0.7,0.9,1)
+    property color dim: Qt.rgba(0.4,0.4,0.4,1)
+    property color foreground: "white"
+    property string fontFamily: "monospace"
+    function tr(key, fallback) { return fallback }
+    function moveFocus(direction, wrap) {}
+    function focusControl(target) { target.forceActiveFocus() }
+    function setLightingDraftChannel(index, value) {
+      var rgb = lightingDraftRgb.slice(); rgb[index] = value; lightingDraftRgb = rgb
+    }
+  }
+  function check(ok, why) { if (!ok) throw new Error(why) }
+  function checkRgb(rgb) {
+    for (var i = 0; i < 3; i++) check(Math.abs(root.lightingDraftRgb[i] - rgb[i]) <= 1, "RGB mismatch " + root.lightingDraftRgb)
+  }
+  function run() {
+    resetFromDraft(false); publishDraft(); checkRgb([51,102,153])
+    var r = wheel.width / 2
+    choosePoint(r*2,r); checkRgb([153,0,0])
+    setBrightness(1); checkRgb([255,0,0])
+    hue = 1/3; saturation = 1; publishDraft(); checkRgb([0,255,0])
+    setBrightness(0); checkRgb([0,0,0]); check(Math.abs(hue-1/3)<0.001, "Black erased hue")
+    setBrightness(1); choosePoint(r,r); checkRgb([255,255,255]); check(Math.abs(hue-1/3)<0.001, "Grey erased hue")
+    for (var text of ["#000000", "FFFFFF", "aB80cD"]) {
+      check(setHex(text), "Valid HEX rejected")
+      check(hexValue.toLowerCase() === ("#" + text.replace(/^#/, "")).toLowerCase(), "HEX roundtrip")
+    }
+    var saved = JSON.stringify(root.lightingDraftRgb)
+    for (var bad of ["", "#", "123", "12345z", "1234567", "#12345678", "red", null]) {
+      check(!setHex(bad), "Invalid HEX accepted")
+      check(JSON.stringify(root.lightingDraftRgb) === saved, "Invalid HEX mutated draft")
+    }
+    setChannel(0,17); setChannel(1,34); setChannel(2,51); checkRgb([17,34,51])
+    check(hexValue === "#112233", "RGB/HEX mismatch")
+    root.connected = false; check(!setHex("ffffff"), "Offline HEX accepted"); setBrightness(1); checkRgb([17,34,51])
+    root.connected = true; root.lightingColorExpanded = false
+    check(!setHex("ffffff"), "Closed HEX accepted"); choosePoint(r*2,r); checkRgb([17,34,51])
+    root.lightingColorExpanded = true
+    setHex("#7F7F7F"); publishDraft(); checkRgb([127,127,127])
+    return true
+  }
+)QML");
+  QQmlComponent paletteComponent(&engine);
+  paletteComponent.setData(paletteQml.toUtf8(), QUrl("file:///tmp/cetra-offline-palette.qml"));
+  std::unique_ptr<QObject> paletteObject(paletteComponent.create());
+  if (!paletteObject) { qCritical() << paletteComponent.errors(); return 1; }
+  if (!QMetaObject::invokeMethod(paletteObject.get(), "run", Q_RETURN_ARG(QVariant, result)) || !result.toBool()) return 1;
+  // Ancestor visibility must reinitialize the same production editor on reopening.
+  QQuickWindow visibilityWindow;
+  visibilityWindow.resize(360,174);
+  QQuickItem hiddenParent(visibilityWindow.contentItem());
+  visibilityWindow.show();
+  QCoreApplication::processEvents();
+  auto *paletteItem = qobject_cast<QQuickItem *>(paletteObject.get());
+  paletteItem->setParentItem(&hiddenParent);
+  hiddenParent.setVisible(false);
+  auto *paletteModel = paletteObject->property("root").value<QObject *>();
+  paletteModel->setProperty("lightingDraftRgb", QVariantList{255,0,255});
+  hiddenParent.setVisible(true);
+  if (qAbs(paletteObject->property("hue").toDouble() - 5.0/6.0) > 0.001) {
+    std::cerr << "Palette reopen: hue=" << paletteObject->property("hue").toDouble() << " visible=" << paletteItem->isVisible() << " parent=" << hiddenParent.isVisible() << "\n"; return 1;
+  }
+  paletteItem->setParentItem(nullptr);
+  if (!qEnvironmentVariableIsEmpty("CETRA_PALETTE_CAPTURE")) {
+    QQuickWindow window;
+    window.setColor(Qt::transparent);
+    window.resize(360, 210);
+    auto *item = qobject_cast<QQuickItem *>(paletteObject.get());
+    item->setParentItem(window.contentItem());
+    window.show();
+    for (int i = 0; i < 20; ++i) QCoreApplication::processEvents();
+    if (!window.grabWindow().save(qEnvironmentVariable("CETRA_PALETTE_CAPTURE"))) return 1;
+    item->setParentItem(nullptr);
+  }
+  qInfo("PASS complete Qt palette: HSV/RGB, black/grey hue preservation, closed/USB draft guards");
+
+  // Exercise the production HEX TextField handlers under a parent key catcher.
+  QString inputQml = R"QML(import QtQuick
+import QtQuick.Controls
+Item {
+  id: frame
+  property int leaked: 0
+  property int cancelled: 0
+  property QtObject style: QtObject { property QtObject font: QtObject { property int bodySmall: 12 } }
+  property QtObject root: QtObject {
+    property string fontFamily: "monospace"
+    property color foreground: "white"
+    property color accent: "white"
+    function tr(key, fallback) { return fallback }
+    function moveFocus(direction, tab) {}
+    function focusControl(target) { target.forceActiveFocus() }
+    function cancelLightingEdit() { frame.cancelled++ }
+  }
+  property QtObject section: QtObject { property bool hexInvalid: false }
+  property QtObject colorField: QtObject {
+    property string hexValue: "#123456"
+    function setHex(text) { return /^#?[0-9a-fA-F]{6}$/.test(text) }
+  }
+  Keys.onPressed: function(event) { leaked++; event.accepted = true }
+  Item { id: chooseColorButton }
+)QML";
+  QString input = extract(dir + "/LightingPalette.qml", R"(^        TextField \{
+[\s\S]*?^        \})");
+  input.replace("Style.", "style.");
+  input.replace("id: hexInput", "id: hexInput; objectName: \"hexInput\"; property color foreground; property color accent");
+  inputQml += input + "\n}";
+  QQmlComponent inputComponent(&engine);
+  inputComponent.setData(inputQml.toUtf8(), QUrl("file:///tmp/cetra-offline-hex.qml"));
+  std::unique_ptr<QObject> inputObject(inputComponent.create());
+  if (!inputObject) { std::cerr << inputComponent.errorString().toStdString(); return 1; }
+  QQuickWindow inputWindow;
+  inputWindow.resize(360,100);
+  auto *inputRoot = qobject_cast<QQuickItem *>(inputObject.get());
+  inputRoot->setParentItem(inputWindow.contentItem()); inputRoot->setWidth(360);
+  inputWindow.show(); QCoreApplication::processEvents();
+  auto *hex = inputObject->findChild<QQuickItem *>("hexInput");
+  hex->forceActiveFocus(); QMetaObject::invokeMethod(hex, "selectAll");
+  for (const QChar c : QString("A3B5C7")) {
+    QKeyEvent key(QEvent::KeyPress, c.unicode(), Qt::NoModifier, QString(c));
+    QCoreApplication::sendEvent(&inputWindow, &key);
+  }
+  if (hex->property("text").toString() != "A3B5C7" || inputObject->property("leaked").toInt() != 0
+      || inputObject->property("section").value<QObject *>()->property("hexInvalid").toBool()) {
+    std::cerr << "HEX typing leaked to parent shortcuts or failed to edit\n"; return 1;
+  }
+  for (int i = 0; i < 3; i++) {
+    QKeyEvent extra(QEvent::KeyPress, Qt::Key_F, Qt::NoModifier, "F");
+    QCoreApplication::sendEvent(&inputWindow, &extra);
+  }
+  if (inputObject->property("leaked").toInt() != 0) return 1;
+  QKeyEvent escape(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+  QCoreApplication::sendEvent(&inputWindow, &escape);
+  if (inputObject->property("cancelled").toInt() != 1 || inputObject->property("leaked").toInt() != 0) return 1;
+  inputRoot->setParentItem(nullptr);
+  std::cout << "PASS Qt HEX input: A/F/digits stay in text editor; Escape cancels draft\n";
 
   // Exercise the production wrapping Text and height binding in real QtQuick.
   // Palette tokens are supplied locally; no Quickshell host or HID is started.

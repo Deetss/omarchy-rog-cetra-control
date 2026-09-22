@@ -95,9 +95,8 @@ Column {
     text: root.pendingMode !== ""
       ? root.tr("noise.switching", "Switching to {mode}\u2026", { mode: root.modeText(root.pendingMode) })
       : root.modeRequestTimedOut ? root.tr("noise.notConfirmed", "Mode change not confirmed. Try again.")
-      : root.tr("noise.shortcuts", "O / {off}    N / {anc}    A / {ambient}", {
-        off: root.modeText("off"), anc: root.modeText("anc"), ambient: root.modeText("ambient")
-      })
+      : ""
+    visible: text !== ""
     color: root.dim
     font.family: root.fontFamily
     font.pixelSize: Style.font.caption

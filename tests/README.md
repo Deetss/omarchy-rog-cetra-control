@@ -7,7 +7,9 @@ outside the active plugin; generated helpers in bin/ are not test artifacts.
 | Suite | What it exercises |
 | --- | --- |
 | microphone-state | Unknown mute, gesture lengths/counter, obsolete commands |
-| microphone-meter.js | Exact source, active-link/self-monitor gate, null/zero, call exclusion, presence without battery |
+| microphone-meter.js | Exact source, active-link/self-monitor gate, null/zero, call exclusion, presence without battery, initial admission/cooldown and Sound signal labels |
+| microphone-meter/run.py | Production meter in isolated Qt with fake Process: immediate start, real two-second timer, rapid capture toggles, source replacement, zero, freshness expiry and stop; no recording |
+| bar-indicator/run.py | Actual Qt bar rendering: independent earbud charge, unknown/zero, mic no-data/zero/response/visibility, fixed geometry, theme scaling and consumer action wiring; no live shell |
 | audio-topology.js | Active direct/processed routes, mixed/foreign inputs, endpoint exclusion, graph limits and call roles |
 | bluetooth.js / bluetooth/run.py | Identity/battery/generation and visibility contracts; complete production Qt observer bindings with controlled native-model fixtures, no hardware operations |
 | contrast.js | Production warning-color guard, dark/light fallback for insufficient contrast |
@@ -24,7 +26,7 @@ outside the active plugin; generated helpers in bin/ are not test artifacts.
 | call-context | Event-driven detection/debounce, bounded loss settlement and restart intent |
 | lighting-color | RGB/settings, auto-theme, actual Qt colors and label geometry |
 | i18n | Catalogs/placeholders, fallback, stale callbacks, plain text |
-| service-lifecycle | Shared requests, 48-tick expiry, late replies, retry, keyboard |
+| service-lifecycle | Shared requests, 48-tick expiry, late replies, retry, Sound/Device keyboard focus and hotplug |
 
 ## Modular source snapshots
 
@@ -76,3 +78,13 @@ JS checks supplement it with wall-clock/cooldown/generation cases and bounded
 shared-view membership. Native Qt tooling including moc is a test dependency.
 Physical case freshness, power consumption, suspend/resume and multimonitor
 acceptance are separate from these offline checks.
+
+## Bar antialiasing
+
+`CETRA_BAR_BACKEND=opengl python3 -B tests/bar-indicator/run.py` explicitly selects
+the RHI scene graph and OpenGL, then verifies the actual graphics API. It fails
+if Qt falls back to another backend. Requires a working local OpenGL context.
+The ordinary aggregate uses software rendering and does not prove accelerated
+edge quality. Both exercise a real 16 px instance alongside the enlarged cells.
+`CETRA_BAR_EVIDENCE_DIR=/tmp/cetra-bar-evidence` retains the fixture image, actual
+size crop and unfiltered pixel zoom for inspection.

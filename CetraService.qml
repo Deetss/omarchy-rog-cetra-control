@@ -81,6 +81,7 @@ CetraPreferences {
     return updateSetting("bluetoothAudioAddress", key, {})
   }
   CallDetector { id: detector; root: serviceHost; observation: audioTopology.observation.communication }
+  readonly property string microphoneCaptureState: audioTopology.observation.capture
   readonly property var microphoneLevel: microphoneMeter.item ? (microphoneMeter.item as MicrophoneMeter).level : null
   Loader {
     id: microphoneMeter

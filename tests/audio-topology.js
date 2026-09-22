@@ -68,3 +68,29 @@ assert.equal(ctx.bluetoothNodeAddress(hfpPublic,[hfpInternal,{...hfpInternal,pro
 console.log('PASS HFP loopback: explicit device.id relation, public microphone endpoint, no internal-stream capture claim');
 
 assert.equal(ctx.route([hfpPublic,discord],[edge(hfpPublic,discord)],address,false),'unknown','Unresolved BlueZ identity is not another proven device');
+
+// Dictation is capture, never a communication call (including explicit roles).
+const dictation = node('alsa_capture.voxtype-vulkan', {
+  'application.name':'PipeWire ALSA [voxtype-vulkan]', 'media.name':'ALSA Capture'
+}, true);
+const dictationActive = {capture:'active',communication:'inactive'};
+const dictationIdle = {capture:'inactive',communication:'inactive'};
+assert.deepEqual(observe([mic,dictation],[edge(mic,dictation)]),dictationActive);
+assert.deepEqual(observe([mic,dsp,virtual,dictation],
+  [edge(mic,dsp),edge(dsp,virtual),edge(virtual,dictation)]),dictationActive);
+for (const edges of [[], [edge(mic,dictation,5)], [edge(other,dictation)]])
+  assert.deepEqual(observe([mic,other,dictation],edges),dictationIdle);
+for (const corked of [true,'true']) {
+  const paused = {...dictation,properties:{...dictation.properties,'pulse.corked':corked}};
+  assert.deepEqual(observe([mic,paused],[edge(mic,paused)]),dictationIdle);
+}
+for (const name of ['alsa_capture.voxtype-vulkan','speech recognition']) {
+  const tagged = node(name,{'media.role':'communication'},true);
+  assert.equal(ctx.isCommunication(tagged),false);
+  assert.deepEqual(observe([mic,tagged],[edge(mic,tagged)]),dictationActive);
+}
+const dictationKeep = {...dictation,properties:{...dictation.properties,'media.name':'/dev/null'}};
+assert.deepEqual(observe([mic,dictationKeep,peak],[edge(mic,dictationKeep),edge(mic,peak)]),dictationIdle);
+assert.deepEqual(observe([mic,other,virtual,dictation],
+  [edge(mic,virtual),edge(other,virtual),edge(virtual,dictation)]),{capture:'unknown',communication:'unknown'});
+console.log('PASS dictation: direct/processed capture, no call, end/pause/other mic/mixed mic, keepalive/self exclusion');

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — compact panel and color editor
+
+- Show per-earbud charge inside the compact bar icon; keep exact values in the
+  panel and tooltip. Preserve right-click USB ANC cycling.
+- Separate Sound and Device, with compact Settings/Color sub-tabs and the
+  shared header language control. Keep Bluetooth telemetry read-only.
+- Add an inline circular color palette, selected-color preview, HEX/RGB and
+  brightness controls. Apply saves and sends the color in one action; Cancel
+  discards edits. Hide unrelated lighting controls during color editing.
+- Admit actual dictation capture to the optional microphone meter without
+  requesting communication mode. Start metering immediately and retain bounded
+  retry delays. Inactive/USB-unavailable levels cannot paint an active signal.
+
 ## 1.8.0 — Bluetooth telemetry
 
 - Keep the panel available for the explicitly selected Bluetooth audio device

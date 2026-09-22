@@ -10,6 +10,7 @@ Column {
   spacing: Style.space(8)
   visible: root.connected
   PanelSectionHeader {
+    visible: !root.lightingColorExpanded
     width: parent.width
     text: root.tr("lighting.title", "LIGHTING")
     foreground: root.foreground
@@ -17,12 +18,14 @@ Column {
   }
   Row {
     id: lightingRow1
+    visible: !root.lightingColorExpanded
     width: parent.width
     spacing: Style.space(6)
     Repeater {
       model: ["off", "cycle"]
       delegate: ControlButton {
         panelRoot: section.root
+        enabled: !root.lightingColorExpanded
         required property string modelData
         width: (lightingRow1.width - lightingRow1.spacing) / 2
         label: root.lightingText(modelData)
@@ -37,6 +40,7 @@ Column {
   }
   Row {
     id: lightingRow2
+    visible: !root.lightingColorExpanded
     width: parent.width
     spacing: Style.space(6)
     Repeater {
@@ -47,6 +51,7 @@ Column {
       ]
       delegate: ControlButton {
         panelRoot: section.root
+        enabled: !root.lightingColorExpanded
         required property var modelData
         width: (lightingRow2.width - lightingRow2.spacing * 2) / 3
         label: modelData.label
@@ -62,7 +67,7 @@ Column {
   Text {
     textFormat: Text.PlainText
     width: parent.width
-    visible: root.lighting !== "unknown"
+    visible: !root.lightingColorExpanded && root.lighting !== "unknown"
     text: root.tr("lighting.lastSent", "Last sent: {effect}", { effect: root.lightingText(root.lighting) })
     color: root.dim
     font.family: root.fontFamily

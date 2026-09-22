@@ -6,40 +6,6 @@ Column {
   id: section
   required property var root
   spacing: Style.space(6)
-  Text {
-    textFormat: Text.PlainText
-    width: section.width
-    visible: root.bluetoothAudioConnected === true && !root.connected && root.bluetoothTelemetryState !== "ready" && root.bluetoothTelemetryStatusText() !== ""
-    text: root.bluetoothTelemetryStatusText()
-    color: root.dim
-    font.family: root.fontFamily
-    font.pixelSize: Style.font.caption
-    wrapMode: Text.WordWrap
-  }
-  Text {
-    textFormat: Text.PlainText
-    width: section.width
-    visible: root.bluetoothAudioConnected === true && !root.connected && root.usesBluetoothTelemetry
-    text: root.bluetoothAncText()
-    color: root.dim
-    font.family: root.fontFamily
-    font.pixelSize: Style.font.caption
-    wrapMode: Text.WordWrap
-  }
-  ControlButton {
-    panelRoot: root
-    width: parent.width
-    visible: root.bluetoothAudioConnected === true && !root.connected
-    enabled: root.bluetoothTelemetryCanRefresh && !root.bluetoothTelemetryBusy
-    label: root.tr("bluetooth.refresh", "Refresh telemetry")
-    leftAlign: true
-    horizontalPadding: 0
-    fontFamily: root.fontFamily
-    fontSize: Style.font.bodySmall
-    foreground: root.foreground
-    accent: root.accent
-    onClicked: root.refreshBluetoothTelemetry()
-  }
   ControlButton {
     panelRoot: root
     width: parent.width
@@ -59,6 +25,25 @@ Column {
     width: parent.width
     spacing: Style.space(6)
     visible: root.bluetoothExpanded
+    Text {
+      textFormat: Text.PlainText
+      width: parent.width
+      visible: root.showMicLevel
+      text: root.tr("microphone.levelHelp", "Measures Cetra input only while another app uses it. Audio is not saved. Silence does not prove mute.")
+      color: root.dim
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      wrapMode: Text.Wrap
+    }
+    Text {
+      textFormat: Text.PlainText
+      width: parent.width
+      text: root.microphoneHelpText()
+      color: root.dim
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      wrapMode: Text.Wrap
+    }
     Repeater {
       model: [
         root.bluetoothAvailability !== "ready" ? root.tr("connection.serviceUnavailable", "Bluetooth service or adapter unavailable.") : "",

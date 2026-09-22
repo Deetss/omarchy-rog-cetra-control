@@ -45,12 +45,14 @@ Item {
   function isEndpoint(node) {
     var p = node.properties || {}
     return node.isStream === true && node.isSink === false && !isMonitor(node)
-      && !/easy[ _-]?effects|keepalive|\/dev\/null|voxtype|recognition/i.test(identity(node))
+      && !/easy[ _-]?effects|keepalive|\/dev\/null/i.test(identity(node))
       && !/^(DSP|Filter)$/i.test(p["media.role"] || "")
       && p["pulse.corked"] !== true && p["pulse.corked"] !== "true"
   }
 
   function isCommunication(node) {
+    // Dictation can drive the signal meter without requesting headset call mode.
+    if (/voxtype|recognition/i.test(identity(node))) return false
     var p = node.properties || {}
     var role = p["media.role"] || ""
     // Explicit non-call roles take precedence over application-name heuristics.

@@ -159,8 +159,14 @@ Accepted writes override older disk completions until matching
 readback or a three-second reload. Both host snapshots and widget injections
 were observed to lag; views must not overwrite the shared state with them.
 
-RGB selection and theme selection alone send no lighting writes. Explicit Apply
-or an effect action sends the selection. Auto-theme is a separate opt-in, default
+The visual Color palette holds a local RGB draft; HSV selection preserves hue
+through black and grey. Language selection opens from the compact header button above the page tabs,
+following the MX Ergo layout. Apply saves all three channels and manual-color
+mode in one self-scoped host update, then dispatches that exact draft through the
+existing USB lighting command. Save failure sends nothing; dispatch rejection
+keeps the editor open without claiming delivery. A saved preference remains saved
+if dispatch fails. Cancel and view/USB loss discard remaining unsaved edits.
+RGB selection and theme selection alone send no lighting writes. Auto-theme is a separate opt-in, default
 Off, and needs a current-session explicit colored apply. Off/Cycle are preserved.
 Receiver/helper reset disarms QML automatic updates. The native owner can replay
 its last successful explicit lighting preference within its own session.
@@ -179,7 +185,9 @@ user trials without a new tap; see RESEARCH.md for the exact limitations.
 The opt-in MicrophoneMeter uses the libpulse helper cetra-peak for visual input level,
 not absolute state. One service Loader owns it when enabled/connected; it selects
 only the Cetra ALSA input and fails closed on multiple matching inputs. An active
-external endpoint path admits capture. Monitor streams are excluded so they cannot
+external endpoint path admits capture, including Voxtype/speech recognition.
+Dictation is excluded from communication classification even with a phone role.
+Monitor streams are excluded so they cannot
 sustain that gate or automatic call detection. Nullable level updates are capped
 at 20 Hz during use; PCM and peaks are not persisted. Other input and processing
 paths are not silently substituted.
