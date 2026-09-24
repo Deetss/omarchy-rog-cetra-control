@@ -6,7 +6,7 @@ No publication, desktop/audio/Bluetooth configuration changes or new recorder.
 ## 1. Intent and invariants
 
 Use the MX Ergo panel's shared host controls and progressive disclosure to make
-Cetra easier to scan. Keep bar silhouette D, per-earbud charge fill, actions and
+Cetra easier to scan. Keep per-earbud charge fill, actions and
 all hardware/protocol ownership unchanged. Native microphone mute stays unknown.
 Preserve USB and Bluetooth paths, nullable data, last-report semantics, bounded
 Bluetooth telemetry refresh/retries and the existing opt-in level preference.
@@ -23,9 +23,9 @@ Bluetooth ANC stays read-only and Bluetooth PCM level remains unsupported.
 
 Expose capture observation separately from numeric level: no active recording,
 unknown route, awaiting data, valid zero and positive level must not imply mute.
-Bar: no-data uses an unfilled track with one central break (no tiny dashes),
-available data an unbroken bright
-outline, speech adds existing amplitude fill. No invented signal floor or gain.
+Bar: the accepted 2026-09-24 revision in `SDD-COMPACT-BAR.md` uses a whole,
+dim, empty capsule for no data and a bright empty capsule for measured silence.
+Speech adds the existing amplitude fill. No invented signal floor or gain.
 Start peak observation immediately on a real USB capture admission; retain >=2s
 retry after failure and exclusive process stop/start on source changes. Keep
 /dev/null, self, DSP and keepalive exclusions. No recording files are created.

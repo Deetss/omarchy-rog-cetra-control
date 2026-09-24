@@ -4,3 +4,8 @@
 /bin/cetra-bt-read
 *.o
 *.tmp
+
+# Local design studies and obsolete screenshot collections are not distributable.
+/design/
+/opendesign/
+/screenshots/

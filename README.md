@@ -8,9 +8,11 @@ Cetra models are not supported.
 
 ![ROG Cetra Control panel](preview.png)
 
+Sound panel rendered from the current QML and Omarchy theme in an isolated Qt
+view. Battery values are illustrative; this is not a live device capture.
+
 Version 1.8.0 adds read-only Bluetooth telemetry. See [SDD-BLUETOOTH-TELEMETRY.md](SDD-BLUETOOTH-TELEMETRY.md) for vendor reads and
-[BACKLOG.md](BACKLOG.md) for acceptance limits. The preview predates Bluetooth
-status and does not show the current panel.
+[BACKLOG.md](BACKLOG.md) for acceptance limits.
 
 ## Install
 
@@ -44,10 +46,10 @@ modes over USB. Each earbud silhouette fills from the bottom to show its own
 last-reported charge. Hover or open the panel for exact percentages. An empty
 outline means 0%; an internal dot marks unavailable charge. The previous
 `showPercentage` preference is ignored; saved settings do not need editing.
-The optional slanted microphone meter stays to the right, in the same fixed
-slot. Its signal changes without moving the earbud icons. A dim outline with one
-break means no signal data; a continuous bright outline means data is available.
-Only measured amplitude fills the meter.
+The optional upright microphone capsule stays to the right, in the same fixed
+slot. Its signal changes without moving the earbud icons. A dim, complete outline
+means no signal data; a bright empty outline means measured silence. Only measured
+amplitude fills the capsule from the bottom. Neither state indicates native mute.
 
 The panel opens on **Sound**: charge, noise control and microphone signal.
 The compact **文 EN/RU** button in the header opens language selection above the

@@ -60,7 +60,7 @@ Rectangle {
       CetraBarIndicator { id:barItem; root:model; x:40; y:30; scale:4; transformOrigin:Item.TopLeft }
     }
   }
-  Text { x:8; y:460; text:"Actual 16px rendering: 0 / 25 / 50 / 100 percent"; color:"white"; font.pixelSize:12 }
+  Text { x:8; y:460; text:"Actual-size rendering: 0 / 25 / 50 / 100 percent"; color:"white"; font.pixelSize:12 }
   Repeater {
     model: [0,25,50,100]
     delegate: Item {

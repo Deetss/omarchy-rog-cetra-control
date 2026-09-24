@@ -40,7 +40,7 @@ int main(int argc,char**argv){
     const int c=actual.pixelColor(x,y).red();
     if(c>8 && c<247)++edgePixels;
   }
-  std::printf("16px outline partial-coverage pixels: %d\n",edgePixels);
+  std::printf("Actual-size outline partial-coverage pixels: %d\n",edgePixels);
   auto crop=[&](int n,int x,int y,int w,int h){return img.copy((n%4)*190+40+x,(n/4)*150+30+y,w,h);};
   auto energy=[](const QImage &image){long sum=0; for(int y=0;y<image.height();++y)for(int x=0;x<image.width();++x){auto c=image.pixelColor(x,y);sum+=c.red()+c.green()+c.blue();}return sum;};
   auto ear=[&](int n){return crop(n,24,20,60,64);};
@@ -60,14 +60,14 @@ int main(int argc,char**argv){
   };
   bool pass=true;
   auto require=[&](bool b,const char*why){if(!b){std::fprintf(stderr,"FAIL: %s\n",why);pass=false;}};
-  require(edgePixels>=20,"actual 16px earbud outline must have antialiased edges");
+  require(edgePixels>=20,"actual-size earbud outline must have antialiased edges");
   require(energy(ear(1))>energy(ear(0))+20000,"full charge must fill the actual earbud silhouette");
   require(energy(ear(3))>energy(ear(0)),"unknown charge must differ from measured zero");
   require(samePixels(ear(3),ear(4)),"invalid charge must match unavailable charge");
   require(energy(ear(2).copy(30,0,30,64))>energy(ear(2).copy(0,0,30,64))+10000,"left/right charge must be independent and not reversed");
   for(int n:{5,6,7,8})require(samePixels(ear(n),ear(9)),"speech, unavailable signal or meter visibility must not move/change earbuds");
   require(energy(mic(6))>energy(mic(5)),"microphone must visibly respond to amplitude");
-  require(mic(7)!=mic(5),"broken no-data outline must differ from continuous measured-silence outline");
+  require(mic(7)!=mic(5),"dim no-data outline must differ from bright measured-silence outline");
   require(energy(mic(8))==0,"hidden microphone must paint nothing");
   require(ear(10)!=ear(9),"theme color must propagate to the earbud artwork");
   qInfo()<<(pass?"PASS":"FAIL")<<"actual Qt bar pixels: charge, unknowns, speech, independent sides, stationary icon, hidden mic, theme";
