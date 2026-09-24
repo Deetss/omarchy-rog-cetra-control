@@ -1,4 +1,19 @@
-# Current checkpoint — 2026-09-23 UI development
+# Current checkpoint — 2026-09-24 release preparation
+
+User requested updating the earlier Marketplace request with a new release for
+the current rework. Prepare 1.9.0 locally; the exact push, release/tag and issue
+update will be presented for confirmation. Issue #7774 is still open at `a300fbe`,
+so editing it starts a new exact-commit check without close/reopen churn.
+
+Current published source is `cd62d30`. The full repository suite, semantic QML
+lint, plugin validation and OpenGL icon checks passed. Preview is an isolated Qt
+render with illustrative values. The shell was not restarted for final smoothing.
+Release metadata and notes now describe 1.9.0; see RELEASE.md for the next actions
+and BACKLOG.md for current limits. The unrelated REVIEW-2026-09-22.md stays local.
+
+---
+
+# Earlier checkpoint — 2026-09-23 UI development
 
 User approved the OpenDesign Color flow and requested implementation, commit and
 push to this repository's origin/main. No Marketplace update, tag or release is

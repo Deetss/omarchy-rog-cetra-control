@@ -1,21 +1,29 @@
 # Active backlog
 
-Updated 2026-09-20. This file owns release status; RESEARCH.md owns protocol
+Updated 2026-09-24. This file owns release status; RESEARCH.md owns protocol
 evidence. The detailed pre-modularization audit is preserved in
 [docs/archive/BACKLOG-2026-09-14-before-modules.md](docs/archive/BACKLOG-2026-09-14-before-modules.md).
 
 ## Release status
 
-Marketplace accepted 1.7.0 at `0b491be` on 2026-09-18, following the documentation
-rename requested in issue6873. The Bluetooth update is now authorized for main
-integration and development; the previous acceptance does not cover this update.
-Version 1.8.0 packages read-only Bluetooth telemetry and bounded automatic retries.
-Marked September 20 tests passed all three ANC mappings, changing earbud reports,
-clearing unavailable data and automatic recovery after a case cycle. See
-ACCEPTANCE-2026-09-20.md. Physical case/battery freshness, energy use and original
-channel-failure causality remain limitations, not claimed fixes. Final candidate
-tests, manifest/diff checks and release-document review passed. Exact-commit
-Marketplace submission remains the delivery step; old approval does not cover it.
+Marketplace still lists 1.7.0 at `0b491be4c9af68268c807aa4ac6d67f3b436d6e8`,
+confirmed against the registry on 2026-09-24. Update issue
+[#7774](https://github.com/omacom/omarchy-plugin-marketplace/issues/7774) is open
+for the older 1.8.0 candidate `a300fbe`. Compatibility passed; setup and package
+management require maintainer review. That request has not promoted a new snapshot.
+
+Version 1.9.0 is the local release candidate for the panel, icon and color-editor
+rework, including the earlier read-only Bluetooth telemetry. It introduces no
+additional installer dependencies. See RELEASE-NOTES-1.9.0.md and RELEASE.md.
+Publication and retargeting issue #7774 require confirmation of the exact prepared
+candidate. Existing tags and the accepted Marketplace snapshot remain unchanged.
+
+Marked September 20 Bluetooth tests passed all three ANC mappings, changing
+earbud reports, clearing unavailable data and automatic recovery after a case
+cycle. See ACCEPTANCE-2026-09-20.md. Physical case/battery freshness, energy use,
+Bluetooth microphone capture and live suspend/resume remain unverified. The UI
+rework was accepted by the user; the final icon rendering was checked in isolated
+Qt, without a new desktop lifecycle test.
 
 The following release-preparation notes describe the earlier 1.7.0 baseline.
 

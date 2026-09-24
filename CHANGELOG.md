@@ -1,9 +1,16 @@
 # Changelog
 
-## Unreleased — compact panel and color editor
+## 1.9.0 — panel rework and color editor
 
 - Show per-earbud charge inside the compact bar icon; keep exact values in the
   panel and tooltip. Preserve right-click USB ANC cycling.
+- Redraw the paired, left/right and charging-case symbols; soften bar rendering
+  while retaining the fixed 27 × 26 slot and independent bottom-to-top charge.
+- Keep the microphone capsule upright and stationary. Use a complete dim outline
+  without capture data, a bright empty outline for silence and fill for measured
+  amplitude; no central dash or inferred native mute.
+- Replace the historical preview with an isolated Qt rendering of the current
+  panel and remove unused microphone SVGs.
 - Separate Sound and Device, with compact Settings/Color sub-tabs and the
   shared header language control. Keep Bluetooth telemetry read-only.
 - Add an inline circular color palette, selected-color preview, HEX/RGB and

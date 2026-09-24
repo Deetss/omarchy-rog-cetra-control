@@ -1,4 +1,42 @@
-# 1.8.0 update preparation
+# 1.9.0 release preparation
+
+The candidate combines the panel and color-editor changes from `8df9753`, the
+accepted icon rework and preview from `cd62d30`, and the earlier Bluetooth
+telemetry. Only version metadata and release documentation change in this step.
+
+- Release title: **ROG Cetra Control v1.9.0**.
+- Release body: [RELEASE-NOTES-1.9.0.md](RELEASE-NOTES-1.9.0.md).
+- Marketplace request: update existing issue
+  [#7774](https://github.com/omacom/omarchy-plugin-marketplace/issues/7774) to the
+  full candidate SHA and **[Verify]: ROG Cetra Control 1.9.0 — panel rework and Bluetooth telemetry**.
+- Request template: [MARKETPLACE-SUBMISSION.md](MARKETPLACE-SUBMISSION.md); the
+  outgoing body receives the frozen SHA after commit. Do not request standard installation;
+  manual setup remains required.
+
+The Marketplace registry still records 1.7.0 at `0b491be` as of 2026-09-24.
+Issue #7774 remains open for `a300fbe` (1.8.0): compatibility passed, with manual
+review required for installer and package-manager capabilities. Neither a 1.8.0
+GitHub release nor a 1.9.0 tag exists at preparation time.
+
+Repository tests, semantic QML lint and the OpenGL icon fixture passed for the
+unchanged runtime in `cd62d30`. The 1.9.0 candidate also passed `./tests/run.sh`,
+`omarchy plugin validate .`, release-document link/version checks and
+`git diff --check`. Independent Gemini review covered
+the prior UI/meter/color work and accepted artwork; it did not certify the whole
+plugin. No new live hardware, desktop restart or lifecycle campaign is implied.
+Current limits are recorded in BACKLOG.md and the release notes.
+
+Next external actions are to push the candidate to the plugin repository's main,
+publish a new GitHub release/tag v1.9.0 at that exact commit, and update issue #7774.
+Present the candidate and request confirmation before those actions. Keep existing
+tags, releases, maintainer labels and the Marketplace registry untouched.
+
+---
+
+# Historical 1.8.0 update preparation
+
+The following preparation record predates issue #7774; its pending-submission
+wording is historical. The open issue and current status are recorded above.
 
 The accepted Marketplace baseline is 1.7.0 at `0b491be`, published September 18.
 Bluetooth development was merged into main at `3c8cc8d`; automatic retry runtime

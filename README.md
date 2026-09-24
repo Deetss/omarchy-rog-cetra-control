@@ -11,7 +11,9 @@ Cetra models are not supported.
 Sound panel rendered from the current QML and Omarchy theme in an isolated Qt
 view. Battery values are illustrative; this is not a live device capture.
 
-Version 1.8.0 adds read-only Bluetooth telemetry. See [SDD-BLUETOOTH-TELEMETRY.md](SDD-BLUETOOTH-TELEMETRY.md) for vendor reads and
+Version 1.9.0 combines the panel and icon rework, inline color editor and read-only
+Bluetooth telemetry. See [release notes](RELEASE-NOTES-1.9.0.md),
+[SDD-BLUETOOTH-TELEMETRY.md](SDD-BLUETOOTH-TELEMETRY.md) for vendor reads and
 [BACKLOG.md](BACKLOG.md) for acceptance limits.
 
 ## Install

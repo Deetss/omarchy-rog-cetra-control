@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.pavellizunov.rog-cetra-control",
   "name": "ROG Cetra Control",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "author": "PavelLizunov",
   "license": "MIT",
   "description": "USB controls and Bluetooth battery/ANC status for ROG Cetra True Wireless SpeedNova; optional USB microphone level.",
