@@ -42,6 +42,12 @@ Item {
   readonly property bool micFillVisible: indicator.isMicSignalValid && indicator.micFraction > 0
   readonly property real chargeFillEdgeOverlap: 2
   readonly property color chargeShellColor: Qt.rgba(root.barColor.r, root.barColor.g, root.barColor.b, 0.28)
+  readonly property color leftShellColor: root.leftCharging === true
+    ? Qt.rgba(root.barColor.r, root.barColor.g, root.barColor.b, 0.55)
+    : indicator.chargeShellColor
+  readonly property color rightShellColor: root.rightCharging === true
+    ? Qt.rgba(root.barColor.r, root.barColor.g, root.barColor.b, 0.55)
+    : indicator.chargeShellColor
 
   Item {
     id: canvas
@@ -74,13 +80,13 @@ Item {
         ShapePath {
           strokeWidth: 0
           strokeColor: "transparent"
-          fillColor: indicator.hasLeftLevel && indicator.leftPct > 0 ? indicator.chargeShellColor : "transparent"
+          fillColor: indicator.hasLeftLevel && indicator.leftPct > 0 ? indicator.leftShellColor : "transparent"
           PathSvg { path: indicator.leftOutline }
         }
         ShapePath {
           strokeWidth: 0
           strokeColor: "transparent"
-          fillColor: indicator.hasRightLevel && indicator.rightPct > 0 ? indicator.chargeShellColor : "transparent"
+          fillColor: indicator.hasRightLevel && indicator.rightPct > 0 ? indicator.rightShellColor : "transparent"
           PathSvg { path: indicator.rightOutline }
         }
       }
