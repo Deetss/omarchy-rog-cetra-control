@@ -37,7 +37,8 @@ Rectangle {
       {label:"50% / quiet speech", l:50, r:50, mic:0.3, show:true},
       {label:"Theme color", l:50, r:50, mic:0.3, show:true, tint:"#50e0b0"},
       {label:"25% / 75%", l:25, r:75, mic:0.3, show:true},
-      {label:"50% / left charging", l:50, r:50, lc:true, mic:0, show:true}
+      {label:"50% / left charging", l:50, r:50, lc:true, mic:0, show:true},
+      {label:"15% / 50%, low warning", l:15, r:50, mic:0, show:true}
     ]
     delegate: Item {
       id: cell
@@ -57,6 +58,7 @@ Rectangle {
         property bool showMicLevel: cell.modelData.show
         property color barColor: cell.modelData.tint || "white"
         property color barForeground: "white"
+        property color warningColor: "#ff5555"
         function microphoneLevelText() { return "Fixture microphone" }
       }
       Text { x:8; y:8; text:cell.modelData.label; color:"white"; font.pixelSize:12 }
@@ -83,6 +85,7 @@ Rectangle {
         property bool showMicLevel: true
         property color barColor: "white"
         property color barForeground: "white"
+        property color warningColor: "#ff5555"
         function microphoneLevelText() { return "Fixture microphone" }
       }
       CetraBarIndicator { root:smallModel }
