@@ -694,7 +694,7 @@ const cases = {
     assert.equal(view.reportText(null, false, true), 'Not charging');
     assert.match(widgetSource, /text: root\.tr\("battery\.lastReported", "Battery values are last reported\."\)/);
     assert.equal((widgetSource.match(/root\.tr\("battery\.lastReported"/g) || []).length, 1);
-    assert.match(widgetSource, /visible: text !== "" && \(!root\.usesBluetoothTelemetry \|\| modelData\.charging === true\s*\|\| modelData\.present === true \|\| modelData\.present === false\)\s+text: modelData.present === true && modelData.value === null\s*\? root.tr\("battery.presentNoLevel"/);
+    assert.match(widgetSource, /visible: text !== "" && \(!root\.usesBluetoothTelemetry \|\| modelData\.charging === true\s*\|\| modelData\.present === true \|\| modelData\.present === false \|\| modelData\.value === null\)\s+text: modelData.present === true && modelData.value === null\s*\? root.tr\("battery.presentNoLevel"/);
     assert.match(widgetSource, /: root\.batteryStatusText\(modelData.present, modelData.charging, modelData.isCase\)/);
   },
   'event detector owns no subprocess needing descendant cleanup': () => {
