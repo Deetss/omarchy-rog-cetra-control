@@ -575,7 +575,7 @@ assert.equal(retryCtx.state, 'ready');
 assert.equal(retryCtx.consecutiveFailures, 0, 'Consecutive failures reset to 0 on success');
 assert.notEqual(retryCtx.snapshot, null);
 assert.equal(retryCtx.pollTimer.running, true);
-assert.equal(retryCtx.pollTimer.interval, 120000, 'Poll timer restored to normal background poll');
+assert.equal(retryCtx.pollTimer.interval, 30000, 'Poll timer restored to normal background poll');
 
 // Next failure restarts at 30s
 retryCtx.pollTimer.trigger();

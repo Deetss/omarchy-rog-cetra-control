@@ -191,7 +191,7 @@ Item {
       state = "ready"
       cooldownTimer.interval = 2000
       cooldownTimer.restart()
-      pollTimer.interval = panelOpen ? 15000 : 120000
+      pollTimer.interval = panelOpen ? 15000 : 30000
       pollTimer.restart()
     } else {
       consecutiveFailures = Math.min(consecutiveFailures + 1, 5)
@@ -332,7 +332,7 @@ Item {
       }
     } else {
       if (pollTimer.running && (state === "ready" || state === "stale")) {
-        pollTimer.interval = 120000
+        pollTimer.interval = 30000
         pollTimer.restart()
       }
     }
@@ -384,7 +384,7 @@ Item {
   Timer {
     id: pollTimer
     objectName: "btPoll"
-    interval: 120000
+    interval: 30000
     repeat: false
     onTriggered: {
       if (telemetryRoot.eligible && !telemetryRoot.busy) {
