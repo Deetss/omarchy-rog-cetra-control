@@ -24,7 +24,7 @@ Column {
           anchors.horizontalCenter: parent.horizontalCenter
           name: modelData.icon
           iconSize: Style.font.display
-          color: root.foreground
+          color: modelData.charging === true ? root.accent : root.foreground
           opacity: modelData.present === true || modelData.value !== null ? 1 : 0.4
         }
         Text {
@@ -64,7 +64,7 @@ Column {
           textFormat: Text.PlainText
           width: parent.width
           visible: text !== "" && (!root.usesBluetoothTelemetry || modelData.charging === true
-            || modelData.present === true || modelData.present === false)
+            || modelData.present === true || modelData.present === false || modelData.value === null)
           text: modelData.present === true && modelData.value === null
             ? root.tr("battery.presentNoLevel", "Available; battery unknown")
             : root.batteryStatusText(modelData.present, modelData.charging, modelData.isCase)
