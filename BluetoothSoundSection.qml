@@ -20,8 +20,8 @@ Column {
   Text {
     textFormat: Text.PlainText
     width: section.width
-    visible: root.bluetoothAudioConnected === true && !root.connected && root.usesBluetoothTelemetry
-    text: root.bluetoothAncText()
+    visible: root.bluetoothTelemetryState === "unavailable"
+    text: root.tr("bluetooth.tryBothOut", "Tip: if it won't connect, try taking both earbuds out of the case, or opening the case lid.")
     color: root.dim
     font.family: root.fontFamily
     font.pixelSize: Style.font.caption
