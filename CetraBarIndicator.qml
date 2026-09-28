@@ -42,6 +42,8 @@ Item {
   readonly property bool micFillVisible: indicator.isMicSignalValid && indicator.micFraction > 0
   readonly property real chargeFillEdgeOverlap: 2
   readonly property color chargeShellColor: Qt.rgba(root.barColor.r, root.barColor.g, root.barColor.b, 0.28)
+  readonly property color leftFillColor: indicator.hasLeftLevel && indicator.leftPct <= 20 ? root.warningColor : root.barColor
+  readonly property color rightFillColor: indicator.hasRightLevel && indicator.rightPct <= 20 ? root.warningColor : root.barColor
   readonly property color leftShellColor: root.leftCharging === true
     ? Qt.rgba(root.barColor.r, root.barColor.g, root.barColor.b, 0.55)
     : indicator.chargeShellColor
@@ -109,7 +111,7 @@ Item {
             strokeWidth: 0
             strokeColor: "transparent"
             fillRule: ShapePath.OddEvenFill
-            fillColor: root.barColor
+            fillColor: indicator.leftFillColor
             PathSvg { path: indicator.leftEarbudPath }
           }
         }
@@ -133,7 +135,7 @@ Item {
             strokeWidth: 0
             strokeColor: "transparent"
             fillRule: ShapePath.OddEvenFill
-            fillColor: root.barColor
+            fillColor: indicator.rightFillColor
             PathSvg { path: indicator.rightEarbudPath }
           }
         }
