@@ -81,7 +81,9 @@ Column {
   Text {
     textFormat: Text.PlainText
     width: parent.width
-    text: root.tr("battery.lastReported", "Battery values are last reported.")
+    text: root.usesBluetoothTelemetry && root.bluetoothTelemetryBusy
+      ? root.tr("bluetooth.statusLoading", "Loading telemetry…")
+      : root.tr("battery.lastReported", "Battery values are last reported.")
     color: root.dim
     font.family: root.fontFamily
     font.pixelSize: Style.font.caption
