@@ -419,7 +419,7 @@ Item {
   Timer {
     id: freshnessTimer
     objectName: "btFreshness"
-    interval: 1000
+    interval: 5000
     repeat: true
     running: telemetryRoot.snapshot !== null
     onTriggered: telemetryRoot.checkFreshness()
