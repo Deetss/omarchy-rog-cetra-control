@@ -36,7 +36,8 @@ Rectangle {
       {label:"50% / meter hidden", l:50, r:50, mic:0.8, show:false},
       {label:"50% / quiet speech", l:50, r:50, mic:0.3, show:true},
       {label:"Theme color", l:50, r:50, mic:0.3, show:true, tint:"#50e0b0"},
-      {label:"25% / 75%", l:25, r:75, mic:0.3, show:true}
+      {label:"25% / 75%", l:25, r:75, mic:0.3, show:true},
+      {label:"50% / left charging", l:50, r:50, lc:true, mic:0, show:true}
     ]
     delegate: Item {
       id: cell
@@ -48,6 +49,8 @@ Rectangle {
         id: model
         property var leftLevel: cell.modelData.l
         property var rightLevel: cell.modelData.r
+        property var leftCharging: cell.modelData.lc !== undefined ? cell.modelData.lc : null
+        property var rightCharging: cell.modelData.rc !== undefined ? cell.modelData.rc : null
         property var microphoneLevel: cell.modelData.mic
         property bool connected: true
         property string microphoneCaptureState: "active"
@@ -72,6 +75,8 @@ Rectangle {
         id: smallModel
         property var leftLevel: small.modelData
         property var rightLevel: small.modelData
+        property var leftCharging: null
+        property var rightCharging: null
         property var microphoneLevel: 0.8
         property bool connected: true
         property string microphoneCaptureState: "active"
