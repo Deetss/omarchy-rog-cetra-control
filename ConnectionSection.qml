@@ -52,7 +52,7 @@ Column {
         root.tr("connection.routes", "Playback: {output}; capture: {input}.", { output: root.routeText(root.audioStatus.output), input: root.routeText(root.audioStatus.capture) }),
         root.bluetoothAudioConnected === true ? root.bluetoothProfileText() : "",
         root.tr("connection.le", "Service BLE: association unknown; charge is not used."),
-        root.connected ? "" : root.tr("connection.usbControls", "ANC, lighting and voice settings require an available earbud through USB.")
+        root.connected ? "" : root.tr("connection.usbControls", "ANC level, lighting and voice settings require an available earbud through USB.")
       ]
       delegate: Text {
         textFormat: Text.PlainText

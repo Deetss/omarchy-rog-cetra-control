@@ -14,6 +14,8 @@ Item {
   state: "idle"
   property bool requestInFlight: false
   property bool pendingLaunch: false
+  property string ancRequest: ""
+  property bool ancRequestFailed: false
   readonly property bool busy: requestInFlight || proc.running || pendingLaunch
   readonly property bool canRefresh: eligible && !cooldownTimer.running && !proc.running && !requestInFlight && !pendingLaunch
 
@@ -112,8 +114,16 @@ Item {
 
     watchdogTimer.interval = 15000
     watchdogTimer.restart()
-    proc.command = [helperCommand, norm]
+    proc.command = ancRequest !== "" ? [helperCommand, norm, "--set-anc", ancRequest] : [helperCommand, norm]
     proc.running = true
+  }
+
+  function setAncMode(mode) {
+    if (!isEligible() || busy || ["off", "anc", "ambient"].indexOf(mode) < 0) return false
+    ancRequest = mode
+    ancRequestFailed = false
+    executeLaunch()
+    return true
   }
 
   function queuePendingLaunch() {
@@ -168,8 +178,11 @@ Item {
     lastExitCode = exitCode
     watchdogTimer.stop()
     killDeadlineTimer.stop()
+    var requestedAnc = ancRequest
+    ancRequest = ""
 
     if (capturedGeneration !== requestGeneration) {
+      ancRequestFailed = requestedAnc !== ""
       stagedResponse = null
       if (pendingLaunch && isEligible()) {
         Qt.callLater(drainPendingLaunch)
@@ -188,6 +201,7 @@ Item {
       snapshot = stagedResponse
       stagedResponse = null
       snapshotAcceptedAt = now
+      ancRequestFailed = requestedAnc !== "" && snapshot.mode !== requestedAnc
       state = "ready"
       cooldownTimer.interval = 2000
       cooldownTimer.restart()
@@ -195,6 +209,7 @@ Item {
       pollTimer.restart()
     } else {
       consecutiveFailures = Math.min(consecutiveFailures + 1, 5)
+      ancRequestFailed = requestedAnc !== ""
       snapshot = null
       stagedResponse = null
       state = "unavailable"
@@ -264,6 +279,7 @@ Item {
     requestGeneration++
     consecutiveFailures = 0
     pendingLaunch = false
+    ancRequestFailed = false
     snapshot = null
     stagedResponse = null
     state = "idle"
@@ -343,6 +359,8 @@ Item {
     requestGeneration++
     requestInFlight = false
     pendingLaunch = false
+    ancRequest = ""
+    ancRequestFailed = false
     watchdogTimer.stop()
     killDeadlineTimer.stop()
     pollTimer.stop()

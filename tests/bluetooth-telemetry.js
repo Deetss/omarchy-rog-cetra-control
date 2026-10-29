@@ -53,6 +53,7 @@ const requiredFns = [
   'isEligible',
   'retryDelay',
   'executeLaunch',
+  'setAncMode',
   'queuePendingLaunch',
   'drainPendingLaunch',
   'requestLaunch',
@@ -96,6 +97,8 @@ function createTelemetryContext(initial = {}) {
     processStopHandled: true,
     requestInFlight: false,
     pendingLaunch: false,
+    ancRequest: '',
+    ancRequestFailed: false,
     proc: {
       running: false,
       processId: 0,
@@ -654,5 +657,43 @@ assert.equal(overlapCtx.busy, true);
 assert.equal(overlapCtx.pollTimer.running, false);
 overlapCtx.pollTimer.trigger();
 assert.equal(overlapCtx.requestInFlight, true);
+
+// 24. ANC set: closed mode domain, exact argv, readback confirms, mismatch/failure flag, no overlap
+const ancCtx = createTelemetryContext({ active: true, address: expectedAddr });
+assert.equal(ancCtx.setAncMode('transparency'), false);
+assert.equal(ancCtx.setAncMode(''), false);
+assert.equal(ancCtx.proc.running, false, 'Unknown mode launches nothing');
+assert.equal(ancCtx.setAncMode('ambient'), true);
+assert.deepEqual(normalizeJson(ancCtx.proc.command), ['/test/bin/cetra-bt-read', expectedAddr, '--set-anc', 'ambient']);
+assert.equal(ancCtx.ancRequest, 'ambient');
+assert.equal(ancCtx.setAncMode('anc'), false, 'No second write while one is in flight');
+ancCtx.handleLine(JSON.stringify({ ...validRaw, mode: 'ambient' }));
+ancCtx.proc.running = false;
+ancCtx.handleProcessStopped(0);
+assert.equal(ancCtx.ancRequest, '');
+assert.equal(ancCtx.ancRequestFailed, false);
+assert.equal(ancCtx.snapshot.mode, 'ambient');
+
+ancCtx.executeLaunch();
+assert.deepEqual(normalizeJson(ancCtx.proc.command), ['/test/bin/cetra-bt-read', expectedAddr], 'Ordinary polls stay read-only');
+ancCtx.handleLine(JSON.stringify(validRaw));
+ancCtx.proc.running = false;
+ancCtx.handleProcessStopped(0);
+
+assert.equal(ancCtx.setAncMode('anc'), true);
+ancCtx.handleLine(JSON.stringify({ ...validRaw, mode: 'off' }));
+ancCtx.proc.running = false;
+ancCtx.handleProcessStopped(0);
+assert.equal(ancCtx.ancRequestFailed, true, 'Readback mismatch is reported, not assumed');
+assert.equal(ancCtx.snapshot.mode, 'off', 'Readback, not the request, drives the shown mode');
+
+assert.equal(ancCtx.setAncMode('off'), true);
+ancCtx.proc.running = false;
+ancCtx.handleProcessStopped(1);
+assert.equal(ancCtx.ancRequestFailed, true);
+assert.equal(ancCtx.ancRequest, '');
+
+const ancIneligible = createTelemetryContext({ active: false, address: expectedAddr });
+assert.equal(ancIneligible.setAncMode('anc'), false);
 
 console.log('PASS CetraTelemetry lifecycle, backoff retries, explicit error/exit handling, single-timer rate limiting, and bounds');

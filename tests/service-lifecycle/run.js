@@ -35,10 +35,13 @@ function functions(ctx, owner) {
 function fixture() {
   const writes = [];
   const signals = [];
+  const bluetoothSets = [];
   let now = 100000;
   const ctx = vm.createContext({
     Date: { now: () => now },
     shell: null, manifest: null, pluginRegistry: null,
+    bluetoothTelemetryWorker: { ancRequest: '', ancRequestFailed: false,
+      setAncMode(mode) { bluetoothSets.push(mode); return true; } },
     deviceWatchProc: { running: false, write(value) { writes.push(value); } },
     callContextProc: { running: false, pending: false, processId: 0, signal(value) { signals.push(value); } },
     deviceWatchRestart: timer(), modeRequestTimeout: timer(), callContextTimeout: timer(), settingsRequestTimeout: timer(), preferenceReadback: timer(), themeColorDelay: timer(),
@@ -46,7 +49,8 @@ function fixture() {
   ctx.root = ctx;
   for (const match of source.matchAll(/^  property (?:string|bool|int|var) (\w+): (.+)$/gm))
     ctx[match[1]] = vm.runInContext(`(${match[2]})`, ctx);
-  for (const name of ['hostReady', 'hostSettings', 'settings', 'settingsStatusKey']) bind(ctx, source, name);
+  for (const name of ['hostReady', 'hostSettings', 'settings', 'settingsStatusKey',
+    'bluetoothAncPendingMode', 'bluetoothAncRequestFailed']) bind(ctx, source, name);
   functions(ctx, source);
   for (const match of block('deviceWatchProc').matchAll(/^    property bool (\w+): (.+)$/gm))
     ctx.deviceWatchProc[match[1]] = vm.runInContext(match[2], ctx);
@@ -108,7 +112,8 @@ function fixture() {
     view.root = view;
     view.i18n = { text: (key, fallback, params) => fallback.replace(/\{(\w+)\}/g, (match, name) => params?.[name] ?? match) };
     view.setting = (name, fallback) => view.settings[name] ?? fallback;
-    for (const name of ['service', 'deviceStatus', 'receiver', 'connected', 'bluetoothTelemetry', 'usesBluetoothTelemetry', 'leftLevel', 'rightLevel', 'caseLevel',
+    for (const name of ['service', 'deviceStatus', 'receiver', 'connected', 'bluetoothTelemetry', 'usesBluetoothTelemetry',
+      'bluetoothTelemetryMode', 'canSetListeningMode', 'leftLevel', 'rightLevel', 'caseLevel',
       'listeningMode', 'pendingMode', 'ancLevel', 'ancAdaptive', 'voicePrompt', 'lighting', 'callContextActive',
       'pendingSettings', 'settingsRequestTimedOut', 'settingsStatusKey',
       'useThemeColor', 'lightingRgb', 'selectedLightingColor', 'colorApplyEffect'])
@@ -119,7 +124,7 @@ function fixture() {
   const settingChanged = () => {
     ctx.syncSettings(ctx.hostSettings);
   };
-  return { ctx, host, registry, services, writes, signals, invoke, ready, widget, settingChanged,
+  return { ctx, host, registry, services, writes, signals, bluetoothSets, invoke, ready, widget, settingChanged,
     watcherRunningChanged, syncWatcherBinding, jumpClock: ms => { now += ms; },
     tick: (count = 1) => {
       for (let i = 0; i < count; i++)
@@ -129,7 +134,7 @@ function fixture() {
 
 const cases = {
   'Bluetooth projection uses one source and never unlocks USB controls': () => {
-    const { ctx, ready, widget, writes } = fixture();
+    const { ctx, ready, widget, writes, bluetoothSets } = fixture();
     ready();
     ctx.connected = false;
     ctx.bluetoothTelemetry = { left: 89, right: 91, case: 100, mode: 'ambient',
@@ -147,6 +152,7 @@ const cases = {
     a.handleTextKey('n');
     a.cycleListeningMode();
     assert.equal(writes.length, before, 'Bluetooth display must not enable USB writes');
+    assert.deepEqual(bluetoothSets, ['anc', 'off'], 'Mode requests go to the Bluetooth setter; cycle starts from the readback mode');
     ctx.applyDeviceState(JSON.stringify({ status: 'ok', receiver: true, connected: true,
       left: 31, right: 32, case: 33, mode: 'off' }));
     assert.equal(a.usesBluetoothTelemetry, false);

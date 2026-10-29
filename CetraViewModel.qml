@@ -115,9 +115,10 @@ Panel {
   readonly property var leftLevel: connected ? (service ? service.leftLevel : null) : (usesBluetoothTelemetry && bluetoothTelemetry.left !== undefined ? bluetoothTelemetry.left : null)
   readonly property var rightLevel: connected ? (service ? service.rightLevel : null) : (usesBluetoothTelemetry && bluetoothTelemetry.right !== undefined ? bluetoothTelemetry.right : null)
   readonly property var caseLevel: connected ? (service ? service.caseLevel : null) : (usesBluetoothTelemetry && bluetoothTelemetry.case !== undefined ? bluetoothTelemetry.case : null)
-  readonly property string listeningMode: service ? service.listeningMode : "unknown"
-  readonly property string pendingMode: service ? service.pendingMode : ""
-  readonly property bool modeRequestTimedOut: service ? service.modeRequestTimedOut : false
+  readonly property bool canSetListeningMode: connected || usesBluetoothTelemetry
+  readonly property string listeningMode: connected ? (service ? service.listeningMode : "unknown") : bluetoothTelemetryMode
+  readonly property string pendingMode: !service ? "" : connected ? service.pendingMode : service.bluetoothAncPendingMode
+  readonly property bool modeRequestTimedOut: !service ? false : connected ? service.modeRequestTimedOut : service.bluetoothAncRequestFailed
   readonly property var ancLevel: service ? service.ancLevel : null
   readonly property var ancAdaptive: service ? service.ancAdaptive : null
   readonly property string voicePrompt: service ? service.voicePrompt : "unknown"
@@ -190,9 +191,6 @@ Panel {
     if (bluetoothTelemetryState === "unavailable")
       return root.tr("bluetooth.statusUnavailable", "Telemetry unavailable. Retrying automatically.")
     return ""
-  }
-  function bluetoothAncText() {
-    return root.tr("bluetooth.ancMode", "Bluetooth ANC: {mode}", { mode: root.modeText(root.bluetoothTelemetryMode) })
   }
   function batterySourceText() {
     if (connected) return root.tr("battery.sourceUsb", "Source: USB")
@@ -276,7 +274,9 @@ Panel {
     return present === true ? "" : root.tr("report.noLiveStatus", "No live status")
   }
   function setListeningMode(mode) {
-    if (service) service.setListeningMode(mode)
+    if (!service) return
+    if (connected) service.setListeningMode(mode)
+    else if (usesBluetoothTelemetry) service.setBluetoothListeningMode(mode)
   }
   function setAncLevel(level) {
     if (service) service.setAncLevel(level)
@@ -349,7 +349,7 @@ Panel {
     return persistSetting(name, value)
   }
   function cycleListeningMode() {
-    if (!connected || pendingMode !== "") return
+    if (!canSetListeningMode || pendingMode !== "") return
     if (listeningMode === "off") setListeningMode("anc")
     else if (listeningMode === "anc") setListeningMode("ambient")
     else setListeningMode("off")

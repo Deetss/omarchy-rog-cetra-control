@@ -11,7 +11,7 @@ const functions = [...source.matchAll(/^  function \w+\([^)]*\) \{[\s\S]*?^  \}/
 
 function fixture() {
   const actions = [], switches = [], controls = [];
-  const ctx = vm.createContext({ opened: true, connected: true, settingsExpanded: false,
+  const ctx = vm.createContext({ opened: true, connected: true, canSetListeningMode: true, settingsExpanded: false,
     ancAdaptive: null, proximity: null, listeningMode: 'off', pendingSettings: {},
     blocked: false, column: { visible: true, enabled: true, children: [] },
     viewport: { contentItem: {}, contentY: 0, contentHeight: 1000, height: 100 },
@@ -128,6 +128,7 @@ function fixture() {
     assert.deepEqual(actions.at(-1), ['setListeningMode', 'anc']);
   }
   ctx.connected = false;
+  ctx.canSetListeningMode = false;
   const count = actions.length;
   for (const text of ['o', 'n', 'a', '1', 'p', 'm']) key('Text', text);
   assert.equal(actions.length, count);
@@ -298,4 +299,16 @@ console.log('PASS keyboard: 4 behavioral groups + control wiring (offline, not Q
   ctx.lightingColorExpanded=true;ctx.connected=false;
   vm.runInContext(source.match(/onConnectedChanged: \{([\s\S]*?)^  \}/m)[1],ctx);
   assert.equal(ctx.lightingColorExpanded,false);assert.deepEqual(actions,[]);
+}
+
+{
+  const { ctx, key, actions } = fixture();
+  ctx.connected = false;
+  ctx.listeningMode = 'anc';
+  for (const text of ['a', '2', 'o']) key('Text', text);
+  assert.deepEqual(actions, [['setListeningMode', 'ambient'], ['setListeningMode', 'off']],
+    'Bluetooth-only: mode shortcuts act, ANC level shortcuts stay USB-only');
+  ctx.canSetListeningMode = false;
+  key('Text', 'n');
+  assert.equal(actions.length, 2, 'No mode shortcut without USB or Bluetooth telemetry');
 }

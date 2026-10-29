@@ -53,6 +53,11 @@ CetraPreferences {
   function refreshBluetoothTelemetry() {
     return bluetoothTelemetryWorker.refresh()
   }
+  readonly property string bluetoothAncPendingMode: bluetoothTelemetryWorker.ancRequest
+  readonly property bool bluetoothAncRequestFailed: bluetoothTelemetryWorker.ancRequestFailed
+  function setBluetoothListeningMode(mode) {
+    return !root.connected && bluetoothTelemetryWorker.setAncMode(mode)
+  }
   readonly property string bluetoothAvailability: bluetoothObserver.availability
   readonly property string audioIdentity: bluetoothObserver.identity
   readonly property var bluetoothAudioConnected: bluetoothObserver.audioConnected

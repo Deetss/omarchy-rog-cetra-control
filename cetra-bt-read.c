@@ -27,6 +27,7 @@
 #define SDP_DEADLINE_MS 4000
 #define CONNECT_DEADLINE_MS 5000
 #define GETTER_DEADLINE_MS 2000
+#define SET_SETTLE_MS 1500
 
 #define BUFFER_MAX 2048
 #define FRAMES_PER_GETTER_MAX 64
@@ -440,6 +441,99 @@ static int rfcomm_connect_nonblocking(const bdaddr_t *dst, int channel, int64_t 
     }
 }
 
+/* Returns 0 on success, -2 on timeout, -1 on socket/IO error */
+static int send_packet(int sock, const uint8_t *packet, size_t packet_len,
+                       int64_t deadline, int64_t overall_deadline_ms) {
+    size_t sent = 0;
+    while (sent < packet_len) {
+        int64_t cur = get_boottime_ms();
+        if (cur >= deadline || cur >= overall_deadline_ms) {
+            return -2;
+        }
+        struct pollfd pfd;
+        pfd.fd = sock;
+        pfd.events = POLLOUT;
+        pfd.revents = 0;
+        int prc = poll(&pfd, 1, (int)(deadline - cur));
+        cur = get_boottime_ms();
+        if (cur >= deadline || cur >= overall_deadline_ms) {
+            return -2;
+        }
+        if (prc == 0) {
+            return -2;
+        }
+        if (prc < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return -1;
+        }
+        ssize_t n = send(sock, packet + sent, packet_len - sent, MSG_NOSIGNAL);
+        cur = get_boottime_ms();
+        if (cur >= deadline || cur >= overall_deadline_ms) {
+            return -2;
+        }
+        if (n < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+                continue;
+            }
+            return -1;
+        }
+        if (n == 0) {
+            return -1;
+        }
+        sent += (size_t)n;
+    }
+    return 0;
+}
+
+/* HAL AacR55ESBT::SetFunction(46) sends command 0x0841 with the wire mode byte; no response frame. */
+static bool build_set_anc_packet(const char *mode, uint8_t out[5]) {
+    uint8_t value;
+    if (strcmp(mode, "off") == 0) {
+        value = 0;
+    } else if (strcmp(mode, "anc") == 0) {
+        value = 1;
+    } else if (strcmp(mode, "ambient") == 0) {
+        value = 2;
+    } else {
+        return false;
+    }
+    out[0] = 0xff;
+    out[1] = 0x01;
+    out[2] = (uint8_t)((0x0841 & 0xff) << 1);
+    out[3] = (uint8_t)((0x0841 >> 8) & 0x7f);
+    out[4] = value;
+    return true;
+}
+
+/* Returns 0 on success, -2 on timeout, -1 on socket/IO error */
+static int run_setter(int sock, const uint8_t *packet, size_t packet_len, int64_t overall_deadline_ms) {
+    int64_t now = get_boottime_ms();
+    int64_t deadline = now + GETTER_DEADLINE_MS;
+    if (deadline > overall_deadline_ms) {
+        deadline = overall_deadline_ms;
+    }
+    if (now >= deadline) {
+        return -2;
+    }
+    int rc = send_packet(sock, packet, packet_len, deadline, overall_deadline_ms);
+    if (rc != 0) {
+        return rc;
+    }
+    /* The earbuds apply the mode asynchronously; an immediate getter can still return the old value. */
+    int64_t settle_until = get_boottime_ms() + SET_SETTLE_MS;
+    if (settle_until > overall_deadline_ms) {
+        return -2;
+    }
+    while (get_boottime_ms() < settle_until) {
+        int64_t remaining = settle_until - get_boottime_ms();
+        struct timespec ts = {.tv_sec = (time_t)(remaining / 1000), .tv_nsec = (long)((remaining % 1000) * 1000000)};
+        nanosleep(&ts, NULL);
+    }
+    return 0;
+}
+
 /* Returns 0 on success, -2 on timeout, -3 on protocol error, -1 on socket/IO error */
 static int run_getter(int sock,
                       uint16_t command,
@@ -464,45 +558,9 @@ static int run_getter(int sock,
     packet[2] = (uint8_t)((command & 0xff) << 1);
     packet[3] = (uint8_t)((command >> 8) & 0x7f);
 
-    size_t sent = 0;
-    while (sent < sizeof(packet)) {
-        int64_t cur = get_boottime_ms();
-        if (cur >= deadline || cur >= overall_deadline_ms) {
-            return -2;
-        }
-        struct pollfd pfd;
-        pfd.fd = sock;
-        pfd.events = POLLOUT;
-        pfd.revents = 0;
-        int prc = poll(&pfd, 1, (int)(deadline - cur));
-        cur = get_boottime_ms();
-        if (cur >= deadline || cur >= overall_deadline_ms) {
-            return -2;
-        }
-        if (prc == 0) {
-            return -2;
-        }
-        if (prc < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            return -1;
-        }
-        ssize_t n = send(sock, packet + sent, sizeof(packet) - sent, MSG_NOSIGNAL);
-        cur = get_boottime_ms();
-        if (cur >= deadline || cur >= overall_deadline_ms) {
-            return -2;
-        }
-        if (n < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-                continue;
-            }
-            return -1;
-        }
-        if (n == 0) {
-            return -1;
-        }
-        sent += (size_t)n;
+    int send_rc = send_packet(sock, packet, sizeof(packet), deadline, overall_deadline_ms);
+    if (send_rc != 0) {
+        return send_rc;
     }
 
     int frames_seen = 0;
@@ -903,6 +961,39 @@ static int run_selftests(void) {
     }
     close(sv[0]); close(sv[1]);
 
+    /* 11. ANC setter packets: exact bytes, closed domain */
+    const struct { const char *mode; uint8_t value; } set_cases[] = {
+        {"off", 0x00}, {"anc", 0x01}, {"ambient", 0x02}
+    };
+    for (size_t i = 0; i < sizeof(set_cases) / sizeof(set_cases[0]); i++) {
+        uint8_t pkt[5] = {0};
+        const uint8_t want[5] = {0xff, 0x01, 0x82, 0x08, set_cases[i].value};
+        if (!build_set_anc_packet(set_cases[i].mode, pkt) || memcmp(pkt, want, sizeof(want)) != 0) {
+            SELFTEST_FAIL("set-anc packet bytes");
+        }
+    }
+    uint8_t rejected[5];
+    if (build_set_anc_packet("", rejected) || build_set_anc_packet("ANC", rejected) ||
+        build_set_anc_packet("3", rejected) || build_set_anc_packet("transparency", rejected)) {
+        SELFTEST_FAIL("set-anc accepted an unknown mode");
+    }
+
+    /* 12. Setter sends exactly the packet and nothing else */
+    if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sv) < 0) SELFTEST_FAIL("socketpair failed");
+    uint8_t amb[5];
+    build_set_anc_packet("ambient", amb);
+    if (run_setter(sv[0], amb, sizeof(amb), get_boottime_ms() + 5000) != 0) {
+        close(sv[0]); close(sv[1]);
+        SELFTEST_FAIL("run_setter failed on socketpair");
+    }
+    shutdown(sv[0], SHUT_WR);
+    uint8_t got[16];
+    ssize_t got_n = read(sv[1], got, sizeof(got));
+    close(sv[0]); close(sv[1]);
+    if (got_n != 5 || memcmp(got, amb, 5) != 0) {
+        SELFTEST_FAIL("run_setter wire bytes");
+    }
+
     printf("ok\n");
     return 0;
 }
@@ -930,7 +1021,15 @@ int main(int argc, char **argv) {
         return run_selftests();
     }
 
-    if (argc != 2) {
+    uint8_t set_packet[5];
+    bool set_requested = false;
+    if (argc == 4 && strcmp(argv[2], "--set-anc") == 0) {
+        if (!build_set_anc_packet(argv[3], set_packet)) {
+            emit_failure("", "protocol");
+            return 1;
+        }
+        set_requested = true;
+    } else if (argc != 2) {
         emit_failure("", "protocol");
         return 1;
     }
@@ -1028,7 +1127,19 @@ int main(int argc, char **argv) {
     uint8_t pwr_payload[4] = {0};
     uint8_t chg_payload[2] = {0};
 
-    int rc = run_getter(sock, 0x2512, 1, anc_payload, buf, &buf_len, sizeof(buf), overall_deadline);
+    int rc = 0;
+    if (set_requested) {
+        rc = run_setter(sock, set_packet, sizeof(set_packet), overall_deadline);
+        if (rc != 0) {
+            close(sock);
+            close(lock_fd);
+            stop_timer_and_block_alrm();
+            emit_failure(normalized_addr, rc == -2 ? "timeout" : "write");
+            return 1;
+        }
+    }
+
+    rc = run_getter(sock, 0x2512, 1, anc_payload, buf, &buf_len, sizeof(buf), overall_deadline);
     if (rc != 0) {
         close(sock);
         close(lock_fd);

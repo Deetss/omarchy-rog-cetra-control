@@ -428,6 +428,7 @@ test('production widget functions consume catalogs, interpolate reports and pres
   Object.assign(ctx, { statusLabel: 'Status', leftLevel: 0, rightLevel: 42, caseLevel: null,
     leftPresent: false, rightPresent: true, leftCharging: true, rightCharging: false, caseCharging: null });
   assert.equal(vm.runInContext(tooltip, ctx), 'ROG Cetra SpeedNova\nStatus\nLast reported: L 0 pct / R 42 pct / Case No data');
+  ctx.connected = true;
   ctx.setListeningMode('ambient');
   const voiceValue = widget.match(/label: root\.tr\("voice\.english", "English"\),\s*value: "([^"]+)"/)[1];
   assert.equal(voiceValue, 'english', 'The UI locale en must not replace the headset protocol enum');

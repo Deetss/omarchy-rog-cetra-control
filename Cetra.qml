@@ -93,7 +93,7 @@ CetraViewModel {
     if (typeof target.clicked === "function") target.clicked()
   }
   function handleTextKey(t) {
-    if (!opened || !connected) return
+    if (!opened || !canSetListeningMode) return
     if (["o", "O", "щ", "Щ"].indexOf(t) >= 0) root.setListeningMode("off")
     else if (["n", "N", "т", "Т"].indexOf(t) >= 0) root.setListeningMode("anc")
     else if (["a", "A", "ф", "Ф"].indexOf(t) >= 0) root.setListeningMode("ambient")

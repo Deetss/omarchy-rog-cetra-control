@@ -7,7 +7,7 @@ Column {
   id: section
   required property var root
   spacing: Style.space(10)
-  visible: root.connected
+  visible: root.canSetListeningMode
   PanelSectionHeader {
     width: parent.width
     text: root.tr("noise.title", "NOISE CONTROL")
@@ -30,7 +30,7 @@ Column {
         fontFamily: root.fontFamily
         fontSize: Style.font.bodySmall
         selected: root.listeningMode === modelData.value
-        enabled: root.pendingMode === ""
+        enabled: root.pendingMode === "" && (root.connected || !root.bluetoothTelemetryBusy)
         tooltipText: root.tr("noise.shortcut", "{shortcut} / {mode}", { shortcut: modelData.shortcut, mode: modelData.label })
         onClicked: root.setListeningMode(modelData.value)
         Rectangle {
@@ -46,7 +46,7 @@ Column {
   Column {
     width: parent.width
     spacing: Style.space(6)
-    visible: root.listeningMode === "anc"
+    visible: root.connected && root.listeningMode === "anc"
     Row {
       id: ancLevelRow
       width: parent.width
