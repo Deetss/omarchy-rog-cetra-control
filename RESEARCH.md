@@ -1356,3 +1356,52 @@ vendor replies returned anc then off, and a later rendered panel showed Off.
 Gesture timing was not marked, so this neither proves a stuck label nor verifies
 gesture-to-panel latency. Current polling is 15 seconds with the panel open and
 120 seconds closed; a marked mode comparison remains an acceptance check.
+
+## Bluetooth ANC mode setter, 2026-09-25
+
+### Static recovery
+
+The official ZIP and `AacAudioHal_x64.dll` were extracted statically (ZIP, Burn
+CAB, x64 MSI, internal CAB) and matched the SHA-256 values above. Disassembly
+used capstone/pefile; no Windows code was run.
+
+| ID | Handler | Command | Payload |
+| --- | --- | --- | --- |
+| 46 `ANC_TYPE` | `0x180083369` | `0x0841` (`0x1800833ab`) | 1 byte mode |
+| 32 `ANC_LEVEL` | `0x180083310` | `0x0c41` (`0x180083357`) | 1 byte level |
+| 59 `ANC_ADAPTIVE` | `0x1800832d3` | `0x0d41` (`0x1800832fe`) | 1 byte, raw |
+
+Each handler goes through protocol vtable slot 0 (`0x180083b10`), which sets a
+1000 ms timeout and lock flag 1 and calls primary vtable +`0x170`, the RFCOMM
+sender `0x18006f130`. That sender calls encoder `0x180043eb0`
+(`0x18006f25e`-`0x18006f290`) and `WS2_32!send` (`0x18006f2ae`). No handshake or
+unlock precedes the send. The setter does not wait for a reply; after a
+successful `send()` it sleeps, releases its mutex and returns success
+(`0x18006f69f`-`0x18006f786`).
+
+USB `SetFunction(46)` at `0x180082280` applies the same SDK-to-wire transform
+and command `0x0841`, so the wire byte equals the one `daemon/protocol.h`
+`set_mode` sends (`cc 41 08 .. [5]=mode`), already verified by USB readback.
+
+Encoded ANC request: `ff 01 82 08 MM`, with MM `00` Off, `01` ANC, `02` Ambient.
+Level (`ff 01 82 0c LL`) and Adaptive (`ff 01 82 0d AA`) domains rest on the USB
+mapping only; Bluetooth `GetFunction(32/59)` was not traced and neither setter
+was sent live.
+
+### Live acceptance
+
+One throwaway helper per step: SDP lookup, one RFCOMM session, ANC getter, one
+setter frame, 1.5 s settle, ANC getter. USB was absent. SDP gave channel 24.
+
+| Request | Before | After | Leftover bytes |
+| --- | --- | --- | --- |
+| Ambient (`02`) | 0 | 2 | 0 |
+| ANC (`01`) | 2 | 1 | 0 |
+| Off (`00`) | 1 | 0 | 0 |
+
+Every write returned success and the getter confirmed each mode. No reply or
+notification frame followed a set. Whether the physical voice prompt matched
+each step was not separately recorded here.
+
+`cetra-bt-read ADDRESS --set-anc off|anc|ambient` now performs that sequence and
+emits the usual snapshot. The panel accepts a mode only from that readback.

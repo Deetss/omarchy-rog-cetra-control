@@ -130,7 +130,8 @@ or clock rollback. These host timestamps do not prove hardware sample freshness.
 The view preserves USB-only `connected` and command gates. Battery columns choose
 one complete USB or Bluetooth source; nullable Bluetooth presence is not inferred
 from charge. `ff` right battery clears that percentage without discarding valid
-siblings. Bluetooth ANC is a separate read-only label. Open-view membership is
+siblings. Without USB, the noise buttons drive the Bluetooth ANC mode setter;
+`canSetListeningMode` gates them and level/Adaptive stay USB-only. Open-view membership is
 bounded to 16 tokens and removed by each view on destruction/service change.
 Native microphone mute remains unknown. No power-saving claim is made.
 

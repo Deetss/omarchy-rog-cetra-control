@@ -10,7 +10,7 @@ do not load the entire repository by default. Protocol evidence is in RESEARCH.m
 | Bar placement, popup, keyboard traversal | `Cetra.qml` | Installed Omarchy Panel/KeyboardPanel; `tests/service-lifecycle/keyboard.js` |
 | View-facing status labels and actions | `CetraViewModel.qml` | All sections; `tests/i18n/run.js`, `tests/lighting-color/run.js` |
 | Bluetooth identity and Battery1 | `CetraBluetooth.qml` | Service; `tests/bluetooth.js`, `tests/bluetooth/run.py` |
-| Bluetooth sound status | `BluetoothSoundSection.qml` | View model; read-only ANC, telemetry status and refresh |
+| Bluetooth sound status | `BluetoothSoundSection.qml` | View model; telemetry status and refresh |
 | Device connection details and selection | `ConnectionSection.qml` | View model → service; Bluetooth and i18n tests |
 | Battery columns | `BatterySection.qml` | View model; device-report and live rendering checks |
 | ANC modes, manual levels, Adaptive | `NoiseSection.qml` | View model → service; `tests/service-lifecycle/run.js` |
@@ -94,7 +94,8 @@ same change. File length is a navigation aid, not a reason to split cohesive cod
   cadence, bounded retry backoff, cooldown and snapshot expiry.
 - `CetraService.qml`: owns the telemetry child and open-view membership.
 - `CetraViewModel.qml`: whole-source battery projection and view registration;
-  `BluetoothSoundSection.qml` owns Bluetooth refresh/status and read-only ANC;
+  `BluetoothSoundSection.qml` owns Bluetooth refresh/status; `NoiseSection.qml`
+  drives ANC mode on either transport;
   `ConnectionSection.qml` owns connection details and identity selection.
 - `tests/bluetooth-telemetry-native.py`: offline native protocol/CLI/lock checks.
 - `tests/bluetooth-telemetry.js`: production QML function state-machine checks.

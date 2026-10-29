@@ -3,8 +3,8 @@
 Battery status, noise control, Aura lighting and headset voice-prompt settings
 for ASUS ROG Cetra True Wireless SpeedNova over its USB receiver (`0b05:1ad3`,
 interface 3). Bluetooth support observes audio connection,
-routes, per-earbud/case charge and ANC mode. Hardware controls still require USB; other
-Cetra models are not supported.
+routes, per-earbud/case charge and ANC mode, and switches ANC mode (Off/ANC/Ambient).
+ANC level, lighting and voice settings still require USB; other Cetra models are not supported.
 
 ![ROG Cetra Control panel](preview.png)
 
@@ -85,7 +85,7 @@ The selected state is readback, not an optimistic click result.
 ### Bluetooth status
 
 The Sound tab shows battery, transport in the header, last-reported notice,
-read-only Bluetooth ANC and Refresh. Connection routes, profile/LE explanations, system Battery1,
+Off/ANC/Ambient noise control and Refresh. Connection routes, profile/LE explanations, system Battery1,
 case freshness and Bluetooth microphone details are under **Device → Settings → Details**, collapsed
 by default. USB availability collapses this section and restores USB controls.
 A Select Bluetooth earbuds button opens Device when an audio identity needs selection.
@@ -96,14 +96,17 @@ it only saves an address to identify future observations. It does not connect,
 pair, scan, or change audio profiles. No name-based automatic selection is used.
 
 - The panel stays available after USB removal while the selected audio device
-  remains connected. ANC controls, lighting, voice settings and the signal meter require
-  USB. Microphone mute remains unknown on both transports.
+  remains connected. ANC level/Adaptive, lighting, voice settings and the signal meter
+  require USB. Microphone mute remains unknown on both transports.
 - With USB earbuds available, their readings have priority. Otherwise the three
   battery columns and bar earbud fills use one complete vendor Bluetooth report.
   Unknown fields stay unknown: a right earbud inside a closed case may stop
   reporting its percentage while the left and case still report values.
-- Bluetooth ANC is read-only. The plugin reads the verified `Asus_APP` service
-  using three fixed getters; it does not send Bluetooth control commands.
+- The plugin reads the verified `Asus_APP` service using three fixed getters.
+  Its only Bluetooth control is the ANC mode setter (`0x0841`, Off/ANC/Ambient),
+  sent once per click and confirmed by the ANC getter in the same session; the
+  panel shows the readback, and a mismatch shows "Mode change not confirmed".
+  Periodic reads never write. ANC level and Adaptive are not sent over Bluetooth.
 - A successful read schedules the next one after 15 seconds with a panel open,
   or two minutes in the background. A failed transaction clears the report and
   retries automatically after 30, 60, 120, 240, then 300 seconds between attempts.

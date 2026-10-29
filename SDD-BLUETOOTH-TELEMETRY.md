@@ -11,8 +11,9 @@ This extends SDD-BLUETOOTH.md for vendor reads; publication is separate.
 Show per-earbud/case device-reported battery and current ANC through the selected
 Bluetooth audio device when USB control is unavailable. Keep USB commands and
 its daemon JSON contract separate. Native microphone mute stays unknown.
-No pairing, controller/profile changes, scanning, root, vendor setters or HID
-access by the new helper. No inferred power-off or presence from unknown battery.
+No pairing, controller/profile changes, scanning, root or HID access by the new
+helper. The only vendor setter is ANC mode (`--set-anc`, added 2026-09-25; see
+RESEARCH.md), sent before the getters of the same session and never by polling. No inferred power-off or presence from unknown battery.
 
 Verdict: Extend — existing verified SDP/RFCOMM protocol and installed libbluetooth;
 use one bounded native C helper with existing Quickshell service ownership.
@@ -43,8 +44,9 @@ source. No additional Python runtime or package is required.
   is rejected. No claim of hardware measurement freshness or power savings.
 - USB has priority when existing service.connected is true. Otherwise show a
   complete Bluetooth snapshot; never combine fields from USB, vendor and BlueZ.
-- Existing three columns show the selected source. Bluetooth ANC is read-only,
-  with refresh/status/source and last-reported/case-freshness explanation.
+- Existing three columns show the selected source. Bluetooth ANC mode uses the
+  shared noise buttons, confirmed by readback; refresh/status/source and
+  last-reported/case-freshness explanation are unchanged.
 - Shared service owns request and open-view membership. View destruction removes
   its membership. No separate Quickshell instance, daemon, or process per view.
 
